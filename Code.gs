@@ -1,5 +1,5 @@
 /**
- * 2027 房間登記 — Google Apps Script 後端
+ * 2027 房間登記（統計用）— Google Apps Script 後端
  *
  * 安裝方式（只需做一次）：
  *   1. 打開 Google 試算表「2027 親子民宿房間登記」
@@ -13,6 +13,10 @@
  *
  * 之後如果修改了這個檔案：「部署」→「管理部署作業」→ 編輯 → 版本選「新版本」→ 部署。
  * 網址不會改變。
+ *
+ * 這個系統只做統計，不自動分配房間：
+ * 每個房型會列出「間數」和「登記需求」，需求超過間數就標成「需協調」，
+ * 協調好之後由本人或管理員修改登記即可。
  */
 
 // ───────────── 房型設定（改價格或數量只要改這裡） ─────────────
@@ -30,119 +34,84 @@ var ROOMS = [
   // C 區包區：A 區全滿，且 C 區登記滿 3 間才成立
   { id: 'pack',     zone: 'C', name: '包區主題房',     beds: '2 大床',          qty: 4, price: 6800, note: '兔兔／航海／樂高／恐龍各 1 間，原價 7,125 老闆降價', themes: '兔兔、航海、樂高、恐龍' }
 ];
-var C_MIN = 3;          // C 區成團門檻
-var MAX_A_ROOMS = 3;    // 每筆登記最多 A 區間數
-var MAX_EXTRA_QTY = 2;  // 每種 B/C 房型最多間數
+var C_MIN = 3;       // C 區成團門檻（間）
+var MAX_QTY = 3;     // 每個房型每筆登記最多幾間
 
-// ───────────── 分配規則（純函式，不碰試算表） ─────────────
+// ───────────── 統計（純函式，不碰試算表） ─────────────
 /**
- * 依登記先後（createdAt）分配房間。
- * A 區：依志願順序分配；都沒有時若勾選「其他 A 區也可以」就分配任何剩下的 A 區房。
- * B 區：A 區 12 間全滿才開放，先到先得。
- * C 區：A 區全滿，且 C 區登記數 ≥ 3 間才成團，前 4 間確定。
- * 「加訂」＝另外多一間；「候補」＝A 區沒排到時才需要，A 區有房就自動取消。
+ * rooms 每個房型：登記需求、家庭清單、差額、是否需協調。
+ * A 區「住滿」＝每個 A 區房型的需求都 ≥ 間數。
+ * B/C 的「候補」只在 A 區沒排到時才需要，所以另外計數，不算進衝突。
  */
-function allocate(regs, rooms) {
+function summarize(regs, rooms) {
   rooms = rooms || ROOMS;
-  var byId = {};
-  rooms.forEach(function (r) { byId[r.id] = r; });
-  var aTypes = rooms.filter(function (r) { return r.zone === 'A'; }).map(function (r) { return r.id; });
-  var left = {};
-  rooms.forEach(function (r) { left[r.id] = r.qty; });
-
   var order = regs.slice().sort(function (x, y) {
     return (x.createdAt || 0) - (y.createdAt || 0) || String(x.id).localeCompare(String(y.id));
   });
+  var stat = {};
+  rooms.forEach(function (r) { stat[r.id] = { id: r.id, qty: r.qty, demand: 0, backup: 0, families: [] }; });
+
+  order.forEach(function (reg) {
+    (reg.items || []).forEach(function (it) {
+      var s = stat[it.type];
+      if (!s || !(it.qty > 0)) return;
+      if (it.mode === 'backup') s.backup += it.qty; else s.demand += it.qty;
+      s.families.push({ id: reg.id, name: reg.name, qty: it.qty, mode: it.mode || 'want', alts: reg.alts || [] });
+    });
+  });
+
+  var aRooms = rooms.filter(function (r) { return r.zone === 'A'; });
+  var aTotal = 0, aFilled = 0, aDemand = 0;
+  aRooms.forEach(function (r) { aTotal += r.qty; aDemand += stat[r.id].demand; aFilled += Math.min(r.qty, stat[r.id].demand); });
+  var aFull = aFilled >= aTotal;
+  var cDemand = 0, cBackup = 0;
+  rooms.forEach(function (r) { if (r.zone === 'C') { cDemand += stat[r.id].demand; cBackup += stat[r.id].backup; } });
+  var cFormed = aFull && cDemand >= C_MIN;
+
+  var conflicts = 0;
+  rooms.forEach(function (r) {
+    var s = stat[r.id];
+    s.over = Math.max(0, s.demand - r.qty);
+    s.left = Math.max(0, r.qty - s.demand);
+    if (s.over > 0) conflicts++;
+  });
+
+  var byId = {};
+  rooms.forEach(function (r) { byId[r.id] = r; });
   var out = order.map(function (reg, i) {
+    var est = 0;
+    var items = (reg.items || []).filter(function (it) { return byId[it.type] && it.qty > 0; }).map(function (it) {
+      var room = byId[it.type], s = stat[it.type];
+      var status;
+      if (it.mode === 'backup') status = 'backup';
+      else if (room.zone === 'B' && !aFull) status = 'pending_open';
+      else if (room.zone === 'C' && !cFormed) status = 'pending_group';
+      else status = s.over > 0 ? 'conflict' : 'clear';
+      if (it.mode !== 'backup') est += room.price * it.qty;
+      return { zone: room.zone, type: it.type, qty: it.qty, mode: it.mode || 'want', status: status };
+    });
     return { id: reg.id, seq: i + 1, name: reg.name, adults: reg.adults, kids: reg.kids, note: reg.note || '',
-             createdAt: reg.createdAt, updatedAt: reg.updatedAt, lines: [], short: 0, reg: reg };
+             alts: reg.alts || [], items: items, estimate: est, createdAt: reg.createdAt, updatedAt: reg.updatedAt };
   });
 
-  // A 區
-  out.forEach(function (o) {
-    var reg = o.reg;
-    var prefs = (reg.aPrefs || []).filter(function (t) { return aTypes.indexOf(t) >= 0; });
-    var seq = prefs.slice();
-    if (reg.aAnyOk) aTypes.forEach(function (t) { if (seq.indexOf(t) < 0) seq.push(t); });
-    for (var k = 0; k < (reg.aCount || 0); k++) {
-      var got = null;
-      for (var j = 0; j < seq.length; j++) { if (left[seq[j]] > 0) { got = seq[j]; break; } }
-      if (got) {
-        left[got]--;
-        var rank = prefs.indexOf(got);
-        o.lines.push({ zone: 'A', type: got, status: 'ok', pref: rank >= 0 ? rank + 1 : 0 });
-      } else {
-        o.lines.push({ zone: 'A', type: prefs[0] || null, status: 'wait' });
-        o.short++;
-      }
-    }
-  });
-  var aUsed = aTypes.reduce(function (s, t) { return s + (byId[t].qty - left[t]); }, 0);
-  var aTotal = aTypes.reduce(function (s, t) { return s + byId[t].qty; }, 0);
-  var aFull = aUsed >= aTotal;
-
-  // B / C 需求（依登記順序展開成單間）
-  var bQueue = [], cQueue = [];
-  out.forEach(function (o) {
-    var shortage = o.short;
-    (o.reg.extras || []).forEach(function (ex) {
-      var room = byId[ex.type];
-      if (!room || room.zone === 'A') return;
-      for (var q = 0; q < (ex.qty || 0); q++) {
-        var line = { zone: room.zone, type: room.id, mode: ex.mode === 'backup' ? 'backup' : 'add', status: null };
-        if (line.mode === 'backup') {
-          if (shortage > 0) { shortage--; } else { line.status = 'not_needed'; }
-        }
-        o.lines.push(line);
-        if (!line.status) (room.zone === 'B' ? bQueue : cQueue).push({ o: o, line: line });
-      }
-    });
-  });
-
-  // B 區
-  bQueue.forEach(function (it) {
-    if (!aFull) { it.line.status = 'pending_open'; return; }
-    if (left[it.line.type] > 0) { left[it.line.type]--; it.line.status = 'ok'; }
-    else it.line.status = 'wait';
-  });
-
-  // C 區
-  var cRequested = cQueue.length;
-  var cFormed = aFull && cRequested >= C_MIN;
-  cQueue.forEach(function (it) {
-    if (!aFull) { it.line.status = 'pending_open'; return; }
-    if (!cFormed) { it.line.status = 'pending_group'; return; }
-    if (left[it.line.type] > 0) { left[it.line.type]--; it.line.status = 'ok'; }
-    else it.line.status = 'wait';
-  });
-
-  // 候補房確定後，對應的 A 區候補標成「已改住候補房」
-  out.forEach(function (o) {
-    var covered = o.lines.filter(function (l) { return l.mode === 'backup' && l.status === 'ok'; }).length;
-    o.lines.forEach(function (l) {
-      if (covered > 0 && l.zone === 'A' && l.status === 'wait') { l.status = 'covered'; covered--; }
-    });
-    o.total = o.lines.reduce(function (s, l) { return s + (l.status === 'ok' ? byId[l.type].price : 0); }, 0);
-    delete o.reg; delete o.short;
-  });
-
-  var used = {};
-  rooms.forEach(function (r) { used[r.id] = r.qty - left[r.id]; });
   return {
     regs: out,
-    summary: { aUsed: aUsed, aTotal: aTotal, aFull: aFull, bOpen: aFull, cRequested: cRequested,
-               cMin: C_MIN, cFormed: cFormed, used: used, left: left }
+    rooms: stat,
+    summary: { aTotal: aTotal, aFilled: aFilled, aDemand: aDemand, aFull: aFull, bOpen: aFull,
+               cDemand: cDemand, cBackup: cBackup, cMin: C_MIN, cFormed: cFormed, conflicts: conflicts,
+               families: out.length,
+               adults: out.reduce(function (t, o) { return t + (o.adults || 0); }, 0),
+               kids: out.reduce(function (t, o) { return t + (o.kids || 0); }, 0) }
   };
 }
 
-var STATUS_TEXT = { ok: '已確定', wait: '候補中', pending_open: '待開放（A 區未滿）', pending_group: '待成團',
-                    not_needed: '不需要（A 區已有房）', covered: '已改住候補房' };
+var STATUS_TEXT = { clear: '沒有衝突', conflict: '需協調', pending_open: '待 A 區滿', pending_group: '待成團', backup: '候補' };
 
 // ───────────── 試算表存取 ─────────────
 var SHEET_DATA = '登記資料';
-var SHEET_RESULT = '分配結果';
-var SHEET_SUMMARY = '房型總覽';
-var DATA_HEADERS = ['id', 'editKey', 'createdAt', 'updatedAt', '姓名', '大人', '小孩', 'A區間數', 'A區志願', '其他A區也可', 'B/C登記', '備註'];
+var SHEET_DETAIL = '登記明細';
+var SHEET_SUMMARY = '房型統計';
+var DATA_HEADERS = ['id', 'editKey', 'createdAt', 'updatedAt', '姓名', '大人', '小孩', '房間(JSON)', '可接受A區(JSON)', '備註'];
 
 function setup() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -152,14 +121,14 @@ function setup() {
     data.setFrozenRows(1);
     data.getRange(1, 1, 1, DATA_HEADERS.length).setFontWeight('bold');
   }
-  [SHEET_RESULT, SHEET_SUMMARY].forEach(function (n) { if (!ss.getSheetByName(n)) ss.insertSheet(n); });
+  [SHEET_SUMMARY, SHEET_DETAIL].forEach(function (n) { if (!ss.getSheetByName(n)) ss.insertSheet(n); });
   var first = ss.getSheetByName('工作表1') || ss.getSheetByName('Sheet1');
   if (first && ss.getSheets().length > 1) ss.deleteSheet(first);
   var props = PropertiesService.getScriptProperties();
   var key = props.getProperty('ADMIN_KEY');
   if (!key) { key = Utilities.getUuid().slice(0, 8); props.setProperty('ADMIN_KEY', key); }
   writeReports(readRegs());
-  Logger.log('設定完成。管理員金鑰：' + key + '（在網址後面加 ?admin=' + key + ' 即可修改或刪除任何登記）');
+  Logger.log('設定完成。管理員金鑰：' + key + '（在網頁網址後面加 ?admin=' + key + ' 即可修改或刪除任何登記）');
 }
 
 function readRegs() {
@@ -168,17 +137,16 @@ function readRegs() {
   var rows = sh.getRange(2, 1, sh.getLastRow() - 1, DATA_HEADERS.length).getValues();
   return rows.filter(function (r) { return r[0]; }).map(function (r) {
     return { id: String(r[0]), editKey: String(r[1]), createdAt: Number(r[2]), updatedAt: Number(r[3]),
-             name: String(r[4]), adults: Number(r[5]) || 0, kids: Number(r[6]) || 0, aCount: Number(r[7]) || 0,
-             aPrefs: parseJson(r[8], []), aAnyOk: r[9] === true || r[9] === 'TRUE', extras: parseJson(r[10], []),
-             note: String(r[11] || '') };
+             name: String(r[4]), adults: Number(r[5]) || 0, kids: Number(r[6]) || 0,
+             items: parseJson(r[7], []), alts: parseJson(r[8], []), note: String(r[9] || '') };
   });
 }
 
 function parseJson(v, dflt) { try { return v ? JSON.parse(v) : dflt; } catch (e) { return dflt; } }
 
 function toRow(reg) {
-  return [reg.id, reg.editKey, reg.createdAt, reg.updatedAt, reg.name, reg.adults, reg.kids, reg.aCount,
-          JSON.stringify(reg.aPrefs), reg.aAnyOk, JSON.stringify(reg.extras), reg.note];
+  return [reg.id, reg.editKey, reg.createdAt, reg.updatedAt, reg.name, reg.adults, reg.kids,
+          JSON.stringify(reg.items), JSON.stringify(reg.alts), reg.note];
 }
 
 function findRow(sh, id) {
@@ -190,42 +158,54 @@ function findRow(sh, id) {
 
 function writeReports(regs) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var res = allocate(regs);
+  var res = summarize(regs);
   var byId = {};
   ROOMS.forEach(function (r) { byId[r.id] = r; });
-  var tz = ss.getSpreadsheetTimeZone();
-
-  var rows = [['順序', '姓名', '大人', '小孩', '區', '房型', '用途', '狀態', '房價', '登記時間', '備註']];
-  res.regs.forEach(function (o) {
-    o.lines.forEach(function (l, i) {
-      var room = l.type ? byId[l.type] : null;
-      rows.push([o.seq, o.name, i === 0 ? o.adults : '', i === 0 ? o.kids : '', l.zone,
-                 room ? room.name : '（未選志願）',
-                 l.zone === 'A' ? (l.pref ? '第 ' + l.pref + ' 志願' : (l.status === 'ok' ? '其他 A 區' : '')) : (l.mode === 'backup' ? '候補' : '加訂'),
-                 STATUS_TEXT[l.status] || l.status, l.status === 'ok' ? room.price : '',
-                 i === 0 ? Utilities.formatDate(new Date(o.createdAt), tz, 'yyyy/MM/dd HH:mm') : '', i === 0 ? o.note : '']);
-    });
-  });
-  var sh = ss.getSheetByName(SHEET_RESULT) || ss.insertSheet(SHEET_RESULT);
-  sh.clearContents();
-  sh.getRange(1, 1, rows.length, rows[0].length).setValues(rows);
-  sh.getRange(1, 1, 1, rows[0].length).setFontWeight('bold');
-  sh.setFrozenRows(1);
-
   var s = res.summary;
-  var sum = [['區', '房型', '床型', '總數', '已確定', '剩餘', '2027 價格', '說明']];
-  ROOMS.forEach(function (r) { sum.push([r.zone, r.name, r.beds, r.qty, s.used[r.id], s.left[r.id], r.price, r.note]); });
-  sum.push(['', '', '', '', '', '', '', '']);
-  sum.push(['A 區', '已確定 ' + s.aUsed + ' / ' + s.aTotal, s.aFull ? '已滿' : '未滿', '', '', '', '', '']);
-  sum.push(['B 區', s.bOpen ? '已開放' : '未開放（等 A 區滿）', '', '', '', '', '', '']);
-  sum.push(['C 區', '登記 ' + s.cRequested + ' 間，門檻 ' + s.cMin, s.cFormed ? '已成團' : '未成團', '', '', '', '', '']);
-  var totalAll = res.regs.reduce(function (t, o) { return t + o.total; }, 0);
-  sum.push(['合計', '已確定房價總額', totalAll, '', '', '', '', '']);
+
+  // 房型統計
+  var sum = [['區', '房型', '床型', '間數', '登記需求', '差額', '狀態', '候補', '2027 價格', '登記的家庭', '說明']];
+  ROOMS.forEach(function (r) {
+    var st = res.rooms[r.id];
+    var state = st.over > 0 ? '需協調（超出 ' + st.over + ' 間）' : (st.left > 0 ? '剩 ' + st.left + ' 間' : '剛好');
+    var fam = st.families.filter(function (f) { return f.mode !== 'backup'; })
+      .map(function (f) { return f.name + (f.qty > 1 ? '×' + f.qty : ''); }).join('、');
+    sum.push([r.zone, r.name, r.beds, r.qty, st.demand, st.demand - r.qty, state, st.backup || '', r.price, fam, r.note]);
+  });
+  sum.push(['', '', '', '', '', '', '', '', '', '', '']);
+  sum.push(['A 區', '已登記 ' + s.aFilled + ' / ' + s.aTotal + ' 間', s.aFull ? '已住滿' : '未住滿', '', '', '', '', '', '', '', '']);
+  sum.push(['B 區', s.bOpen ? '開放條件已達成' : '等 A 區住滿', '', '', '', '', '', '', '', '', '']);
+  sum.push(['C 區', '登記 ' + s.cDemand + ' 間（門檻 ' + s.cMin + '）', s.cFormed ? '已成團' : '未成團', '', '', '', '', '', '', '', '']);
+  sum.push(['人數', s.families + ' 個家庭', '大人 ' + s.adults, '小孩 ' + s.kids, '', '', '', '', '', '', '']);
   var sh2 = ss.getSheetByName(SHEET_SUMMARY) || ss.insertSheet(SHEET_SUMMARY);
   sh2.clearContents();
   sh2.getRange(1, 1, sum.length, sum[0].length).setValues(sum);
   sh2.getRange(1, 1, 1, sum[0].length).setFontWeight('bold');
   sh2.setFrozenRows(1);
+
+  // 登記明細：一個家庭一列，每個房型一欄
+  var head = ['順序', '姓名', '大人', '小孩'].concat(ROOMS.map(function (r) { return r.zone + ' ' + r.name; }))
+    .concat(['候補房型', '可接受的其他 A 區', '預估金額', '備註']);
+  var rows = [head];
+  res.regs.forEach(function (o) {
+    var row = [o.seq, o.name, o.adults, o.kids];
+    ROOMS.forEach(function (r) {
+      var q = 0;
+      o.items.forEach(function (it) { if (it.type === r.id && it.mode !== 'backup') q += it.qty; });
+      row.push(q || '');
+    });
+    row.push(o.items.filter(function (it) { return it.mode === 'backup'; })
+      .map(function (it) { return byId[it.type].name + (it.qty > 1 ? '×' + it.qty : ''); }).join('、'));
+    row.push(o.alts.map(function (a) { return byId[a] ? byId[a].name : a; }).join('、'));
+    row.push(o.estimate);
+    row.push(o.note);
+    rows.push(row);
+  });
+  var sh = ss.getSheetByName(SHEET_DETAIL) || ss.insertSheet(SHEET_DETAIL);
+  sh.clearContents();
+  sh.getRange(1, 1, rows.length, head.length).setValues(rows);
+  sh.getRange(1, 1, 1, head.length).setFontWeight('bold');
+  sh.setFrozenRows(1);
   return res;
 }
 
@@ -239,11 +219,11 @@ function doPost(e) {
   lock.waitLock(20000);
   try {
     var body = JSON.parse(e.postData.contents || '{}');
-    var isAdmin = body.adminKey && body.adminKey === PropertiesService.getScriptProperties().getProperty('ADMIN_KEY');
+    var isAdmin = !!body.adminKey && body.adminKey === PropertiesService.getScriptProperties().getProperty('ADMIN_KEY');
     var sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_DATA);
     if (!sh) return json({ ok: false, error: '試算表尚未完成設定，請先執行 setup。' });
 
-    if (body.action === 'checkAdmin') return json({ ok: !!isAdmin });
+    if (body.action === 'checkAdmin') return json({ ok: isAdmin });
 
     if (body.action === 'delete') {
       var row = findRow(sh, String(body.id || ''));
@@ -289,37 +269,39 @@ function validate(r) {
   if (!name) return { error: '請填寫姓名。' };
   var adults = clampInt(r.adults, 0, 20), kids = clampInt(r.kids, 0, 20);
   if (adults + kids < 1) return { error: '請填寫入住人數。' };
-  var aIds = ROOMS.filter(function (x) { return x.zone === 'A'; }).map(function (x) { return x.id; });
-  var aCount = clampInt(r.aCount, 1, MAX_A_ROOMS);
-  var aPrefs = [];
-  (r.aPrefs || []).forEach(function (t) { if (aIds.indexOf(t) >= 0 && aPrefs.indexOf(t) < 0) aPrefs.push(t); });
-  aPrefs = aPrefs.slice(0, 3);
-  if (!aPrefs.length) return { error: '請至少選一個 A 區志願。' };
-  var bcIds = ROOMS.filter(function (x) { return x.zone !== 'A'; }).map(function (x) { return x.id; });
-  var extras = [];
-  (r.extras || []).forEach(function (ex) {
-    var q = clampInt(ex.qty, 0, MAX_EXTRA_QTY);
-    if (bcIds.indexOf(ex.type) >= 0 && q > 0) extras.push({ type: ex.type, qty: q, mode: ex.mode === 'backup' ? 'backup' : 'add' });
+  var byId = {};
+  ROOMS.forEach(function (x) { byId[x.id] = x; });
+  var items = [], seen = {};
+  (r.items || []).forEach(function (it) {
+    var room = byId[it.type];
+    var q = clampInt(it.qty, 0, MAX_QTY);
+    var mode = room && room.zone !== 'A' && it.mode === 'backup' ? 'backup' : 'want';
+    if (!room || q < 1 || seen[it.type + mode]) return;
+    seen[it.type + mode] = true;
+    items.push({ type: it.type, qty: q, mode: mode });
   });
-  return { name: name, adults: adults, kids: kids, aCount: aCount, aPrefs: aPrefs, aAnyOk: !!r.aAnyOk,
-           extras: extras, note: String(r.note || '').trim().slice(0, 200) };
+  if (!items.some(function (it) { return byId[it.type].zone === 'A'; })) return { error: 'A 區至少要選一間。' };
+  var alts = [];
+  (r.alts || []).forEach(function (a) {
+    if (byId[a] && byId[a].zone === 'A' && alts.indexOf(a) < 0) alts.push(a);
+  });
+  return { name: name, adults: adults, kids: kids, items: items, alts: alts,
+           note: String(r.note || '').trim().slice(0, 200) };
 }
 
 function clampInt(v, lo, hi) { v = Math.round(Number(v) || 0); return Math.max(lo, Math.min(hi, v)); }
 function merge(a, b) { var o = {}; [a, b].forEach(function (x) { for (var k in x) o[k] = x[k]; }); return o; }
 
 function publicState(regs) {
-  var res = allocate(regs);
+  var res = summarize(regs);
   var input = {};
-  regs.forEach(function (r) {
-    input[r.id] = { aCount: r.aCount, aPrefs: r.aPrefs, aAnyOk: r.aAnyOk, extras: r.extras };
-  });
+  regs.forEach(function (r) { input[r.id] = { items: r.items, alts: r.alts }; });
   res.regs.forEach(function (o) { o.input = input[o.id]; });
-  return { ok: true, rooms: ROOMS, cMin: C_MIN, maxA: MAX_A_ROOMS, maxExtra: MAX_EXTRA_QTY, result: res, at: Date.now() };
+  return { ok: true, rooms: ROOMS, cMin: C_MIN, maxQty: MAX_QTY, result: res, at: Date.now() };
 }
 
 function json(obj) {
   return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
 }
 
-if (typeof module !== 'undefined') module.exports = { allocate: allocate, ROOMS: ROOMS, validate: validate };
+if (typeof module !== 'undefined') module.exports = { summarize: summarize, ROOMS: ROOMS, validate: validate };
