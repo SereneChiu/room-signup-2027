@@ -1,0 +1,556 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>2027 房間登記</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chiron+GoRound+TC:wght@500;700&family=Noto+Sans+TC:wght@400;500;700&display=swap">
+<style>
+/* 版面：單欄、手機優先；上方三區進度條，下方房型表 → 登記表單 → 大家的登記 */
+:root {
+  --bg: #eef3f1;
+  --surface: #ffffff;
+  --line: #d6e0dc;
+  --ink: #1c2a28;
+  --muted: #5a6b67;
+  --accent: #d2452b;      /* 消防車紅 */
+  --accent-ink: #ffffff;
+  --zone-a: #1f7a6d;
+  --zone-b: #2f63c9;
+  --zone-c: #8a4bb0;
+  --ok: #1d7f45;      --ok-bg: #e2f4e8;
+  --wait: #a35d00;    --wait-bg: #fdf0d9;
+  --pend: #3d5a80;    --pend-bg: #e4ecf7;
+  --off: #6b7774;     --off-bg: #eceff0;
+  --display: "Chiron GoRound TC", "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif;
+  --body: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", system-ui, sans-serif;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #121a19; --surface: #1b2624; --line: #2e3d3a; --ink: #e6efec; --muted: #9db0ab;
+    --accent: #f06a4f; --accent-ink: #1a0d09;
+    --zone-a: #4cc1ae; --zone-b: #7fa6ff; --zone-c: #c99be6;
+    --ok: #6fd69a; --ok-bg: #173826; --wait: #f2b25c; --wait-bg: #3a2a12;
+    --pend: #9fbbe6; --pend-bg: #1f2c40; --off: #93a19d; --off-bg: #252f2d;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #121a19; --surface: #1b2624; --line: #2e3d3a; --ink: #e6efec; --muted: #9db0ab;
+  --accent: #f06a4f; --accent-ink: #1a0d09;
+  --zone-a: #4cc1ae; --zone-b: #7fa6ff; --zone-c: #c99be6;
+  --ok: #6fd69a; --ok-bg: #173826; --wait: #f2b25c; --wait-bg: #3a2a12;
+  --pend: #9fbbe6; --pend-bg: #1f2c40; --off: #93a19d; --off-bg: #252f2d;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink);
+  font: 15px/1.6 var(--body);
+  padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+[hidden] { display: none !important; }
+.wrap { max-width: 760px; margin: 0 auto; padding-inline: 16px; padding-block: 28px 64px; display: grid; gap: 28px; }
+h1, h2, h3 { font-family: var(--display); margin: 0; text-wrap: balance; line-height: 1.3; }
+h1 { font-size: 2rem; }
+h2 { font-size: 1.3rem; }
+h3 { font-size: 1.05rem; }
+p { margin: 0; }
+.muted { color: var(--muted); }
+.small { font-size: .85rem; }
+.num { font-variant-numeric: tabular-nums; }
+
+header { display: grid; gap: 8px; }
+.eyebrow { font-size: .8rem; letter-spacing: .12em; color: var(--accent); font-weight: 700; }
+.syncline { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; font-size: .85rem; color: var(--muted); }
+
+button, select, input, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 3px solid var(--zone-b); outline-offset: 2px; }
+.btn { border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 6px 14px; }
+.btn:hover { border-color: var(--muted); }
+.btn-primary { background: var(--accent); color: var(--accent-ink); border: 0; border-radius: 12px; padding: 12px 22px; font-weight: 700; font-size: 1rem; }
+.btn-primary:disabled { opacity: .55; cursor: wait; }
+.btn-link { border: 0; background: none; color: var(--zone-b); padding: 0; text-decoration: underline; }
+.btn-danger { color: var(--accent); }
+
+.notice { border: 1px dashed var(--accent); border-radius: 12px; padding: 14px 16px; background: var(--surface); display: grid; gap: 6px; }
+
+/* 三區進度 */
+.zones { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+@media (max-width: 560px) { .zones { grid-template-columns: 1fr; } }
+.zone { background: var(--surface); border-radius: 14px; padding: 14px 16px; display: grid; gap: 6px; border-top: 4px solid var(--zc); }
+.zone .tag { font-family: var(--display); font-weight: 700; color: var(--zc); }
+.zone .big { font-family: var(--display); font-size: 1.6rem; line-height: 1.1; }
+.meter { height: 8px; background: var(--off-bg); border-radius: 99px; overflow: hidden; }
+.meter > i { display: block; height: 100%; background: var(--zc); border-radius: 99px; transition: width .4s; }
+@media (prefers-reduced-motion: reduce) { .meter > i { transition: none; } }
+.za { --zc: var(--zone-a); } .zb { --zc: var(--zone-b); } .zc { --zc: var(--zone-c); }
+
+/* 房型表 */
+.tablebox { overflow-x: auto; background: var(--surface); border-radius: 14px; }
+table { border-collapse: collapse; width: 100%; }
+th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-size: .8rem; color: var(--muted); font-weight: 500; letter-spacing: .04em; }
+tr:last-child td { border-bottom: 0; }
+td.r, th.r { text-align: right; }
+.zonecell { font-family: var(--display); font-weight: 700; color: var(--zc); }
+.sold { color: var(--muted); }
+
+/* 表單 */
+form { background: var(--surface); border-radius: 16px; padding: 20px; display: grid; gap: 22px; }
+fieldset { border: 0; margin: 0; padding: 0; display: grid; gap: 12px; min-width: 0; }
+legend { font-family: var(--display); font-weight: 700; font-size: 1.05rem; padding: 0; margin-bottom: 4px; display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+legend .step { color: var(--accent); }
+label { display: grid; gap: 4px; font-size: .9rem; }
+.row { display: flex; flex-wrap: wrap; gap: 12px; }
+.row > * { flex: 1 1 140px; min-width: 0; }
+input[type=text], input[type=number], select, textarea {
+  width: 100%; border: 1px solid var(--line); border-radius: 10px; padding: 9px 11px; background: var(--bg);
+}
+textarea { min-height: 70px; resize: vertical; }
+.check { display: flex; gap: 8px; align-items: flex-start; font-size: .9rem; }
+.check input { margin-top: 5px; }
+.extra { border: 1px solid var(--line); border-left: 4px solid var(--zc); border-radius: 12px; padding: 12px 14px; display: grid; gap: 10px; }
+.extra-head { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.seg label { display: block; }
+.seg input { position: absolute; opacity: 0; pointer-events: none; }
+.seg span { display: block; padding: 7px 14px; font-size: .9rem; cursor: pointer; }
+.seg input:checked + span { background: var(--ink); color: var(--bg); }
+.seg input:focus-visible + span { outline: 3px solid var(--zone-b); outline-offset: -3px; }
+.seg input:disabled + span { opacity: .4; cursor: default; }
+.formfoot { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+.msg { font-size: .9rem; }
+.msg.err { color: var(--accent); }
+.msg.good { color: var(--ok); }
+.mine { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: .9rem; }
+.mine .btn[aria-pressed=true] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+
+/* 大家的登記 */
+.list { display: grid; gap: 10px; }
+.entry { background: var(--surface); border-radius: 14px; padding: 14px 16px; display: grid; gap: 8px; }
+.entry.me { box-shadow: inset 0 0 0 2px var(--accent); }
+.entry-head { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.entry-name { font-weight: 700; font-size: 1.05rem; }
+.seqno { font-family: var(--display); color: var(--muted); margin-right: 6px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { display: inline-flex; gap: 6px; align-items: center; border-radius: 8px; padding: 3px 9px; font-size: .85rem; background: var(--bg-c); color: var(--fg-c); }
+.chip b { font-weight: 700; }
+.s-ok { --bg-c: var(--ok-bg); --fg-c: var(--ok); }
+.s-wait { --bg-c: var(--wait-bg); --fg-c: var(--wait); }
+.s-pending_open, .s-pending_group { --bg-c: var(--pend-bg); --fg-c: var(--pend); }
+.s-not_needed, .s-covered { --bg-c: var(--off-bg); --fg-c: var(--off); }
+.entry-foot { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; font-size: .9rem; }
+.actions { display: flex; gap: 14px; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px; }
+.empty { background: var(--surface); border-radius: 14px; padding: 20px; color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <p class="eyebrow">2027 包棟住宿</p>
+    <h1>房間登記</h1>
+    <p class="muted">填一次就好。A 區依登記先後與志願分配；B 區在 A 區 12 間全滿後開放；C 區包區在 A 區全滿、且登記滿 3 間時成團。名額變動時狀態會自動更新，不用回來重填。</p>
+    <div class="syncline">
+      <span id="sync">讀取中…</span>
+      <button class="btn" type="button" id="refresh">重新整理</button>
+      <span id="adminTag" hidden>管理員模式</span>
+    </div>
+  </header>
+
+  <div class="notice" id="setupNotice" hidden>
+    <h3>尚未連接 Google 試算表</h3>
+    <p class="small">請把 Apps Script 的網頁應用程式網址貼到 <code>config.js</code> 的 <code>apiUrl</code>。</p>
+  </div>
+  <div class="notice" id="loadError" hidden><p id="loadErrorText"></p></div>
+
+  <section class="zones" id="zones" aria-label="目前進度"></section>
+
+  <section aria-labelledby="h-rooms" style="display:grid;gap:12px">
+    <h2 id="h-rooms">房型與剩餘間數</h2>
+    <div class="tablebox">
+      <table>
+        <thead><tr><th>區</th><th>房型</th><th class="r">2027 價格</th><th class="r">剩餘</th></tr></thead>
+        <tbody id="roomRows"><tr><td colspan="4" class="muted">讀取中…</td></tr></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section aria-labelledby="h-form" style="display:grid;gap:12px">
+    <h2 id="h-form">填寫登記</h2>
+    <div class="mine" id="mine" hidden></div>
+    <form id="form" novalidate>
+      <fieldset>
+        <legend><span class="step">1</span>基本資料</legend>
+        <label for="f-name">姓名（家庭代表）
+          <input type="text" id="f-name" maxlength="30" autocomplete="name" placeholder="例如：王小明">
+        </label>
+        <div class="row">
+          <label for="f-adults">大人
+            <input type="number" id="f-adults" min="0" max="20" value="2" inputmode="numeric">
+          </label>
+          <label for="f-kids">小孩
+            <input type="number" id="f-kids" min="0" max="20" value="1" inputmode="numeric">
+          </label>
+          <label for="f-acount">A 區需要幾間
+            <select id="f-acount"></select>
+          </label>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend><span class="step">2</span>A 區志願（必選）<span class="small muted">依志願順序分配，先登記先排</span></legend>
+        <div class="row">
+          <label for="f-p1">第 1 志願<select id="f-p1"></select></label>
+          <label for="f-p2">第 2 志願<select id="f-p2"></select></label>
+          <label for="f-p3">第 3 志願<select id="f-p3"></select></label>
+        </div>
+        <label class="check" for="f-any"><input type="checkbox" id="f-any" checked><span>志願都沒有時，其他 A 區房型也可以</span></label>
+      </fieldset>
+
+      <fieldset>
+        <legend><span class="step">3</span>B／C 區（可不選）</legend>
+        <p class="small muted"><b>加訂</b>：A 區之外再多住一間。<b>候補</b>：只有 A 區沒排到時才需要，A 區有房就自動取消。</p>
+        <div id="extras" style="display:grid;gap:10px"></div>
+      </fieldset>
+
+      <fieldset>
+        <legend><span class="step">4</span>備註（可不填）</legend>
+        <label for="f-note" class="small muted">例如想要的主題（火車、兔窩、城堡⋯）、和誰住隔壁
+          <textarea id="f-note" maxlength="200"></textarea>
+        </label>
+      </fieldset>
+
+      <div class="formfoot">
+        <button class="btn-primary" type="submit" id="submit">送出登記</button>
+        <button class="btn-link" type="button" id="newEntry" hidden>改為新增另一個家庭</button>
+        <span class="msg" id="msg" role="status"></span>
+      </div>
+    </form>
+  </section>
+
+  <section aria-labelledby="h-list" style="display:grid;gap:12px">
+    <h2 id="h-list">大家的登記</h2>
+    <div class="legend small">
+      <span class="chip s-ok">已確定</span><span class="chip s-wait">候補中</span>
+      <span class="chip s-pending_open">待開放／待成團</span><span class="chip s-not_needed">不需要</span>
+    </div>
+    <div class="list" id="list"><div class="empty">讀取中…</div></div>
+  </section>
+</div>
+
+<script src="config.js"></script>
+<script>
+(function () {
+  var API = (window.ROOM_SIGNUP_CONFIG || {}).apiUrl || '';
+  var STORE_KEY = 'roomSignup2027.mine';
+  var STATUS = { ok: '已確定', wait: '候補中', pending_open: '待開放', pending_group: '待成團', not_needed: '不需要', covered: '已改住候補房' };
+  var state = null;          // 伺服器回傳的完整狀態
+  var editing = null;        // 正在修改的登記 {id, editKey}
+  var adminKey = new URLSearchParams(location.search).get('admin') || '';
+  var isAdmin = false;
+  var $ = function (id) { return document.getElementById(id); };
+  var fmt = function (n) { return n.toLocaleString('zh-TW'); };
+
+  function esc(s) { var d = document.createElement('div'); d.textContent = s == null ? '' : String(s); return d.innerHTML; }
+  function loadMine() { try { return JSON.parse(localStorage.getItem(STORE_KEY) || '[]'); } catch (e) { return []; } }
+  function saveMine(list) { try { localStorage.setItem(STORE_KEY, JSON.stringify(list)); } catch (e) {} }
+
+  function call(method, body) {
+    var opt = method === 'POST' ? { method: 'POST', body: JSON.stringify(body) } : {};
+    return fetch(API + (method === 'GET' ? '?t=' + Date.now() : ''), opt).then(function (r) {
+      if (!r.ok) throw new Error('連線失敗（' + r.status + '）');
+      return r.json();
+    });
+  }
+
+  function roomById(id) { return state.rooms.filter(function (r) { return r.id === id; })[0]; }
+
+  // ───── 畫面 ─────
+  function renderZones() {
+    var s = state.result.summary;
+    var bLeft = state.rooms.filter(function (r) { return r.zone === 'B'; }).reduce(function (t, r) { return t + s.left[r.id]; }, 0);
+    var bTotal = state.rooms.filter(function (r) { return r.zone === 'B'; }).reduce(function (t, r) { return t + r.qty; }, 0);
+    var cTotal = state.rooms.filter(function (r) { return r.zone === 'C'; }).reduce(function (t, r) { return t + r.qty; }, 0);
+    var cPct = Math.min(100, s.cRequested / s.cMin * 100);
+    $('zones').innerHTML =
+      '<div class="zone za"><span class="tag">A 區必選</span><span class="big num">' + s.aUsed + ' / ' + s.aTotal + '</span>' +
+      '<div class="meter"><i style="width:' + (s.aUsed / s.aTotal * 100) + '%"></i></div>' +
+      '<span class="small muted">' + (s.aFull ? '已全滿，B 區已開放' : '還有 ' + (s.aTotal - s.aUsed) + ' 間') + '</span></div>' +
+      '<div class="zone zb"><span class="tag">B 區加選</span><span class="big">' + (s.bOpen ? '剩 ' + bLeft + ' 間' : '未開放') + '</span>' +
+      '<div class="meter"><i style="width:' + (s.bOpen ? (bTotal - bLeft) / bTotal * 100 : 0) + '%"></i></div>' +
+      '<span class="small muted">' + (s.bOpen ? '先到先得' : 'A 區全滿後開放，現在可以先登記') + '</span></div>' +
+      '<div class="zone zc"><span class="tag">C 區包區</span><span class="big num">' + s.cRequested + ' / ' + s.cMin + ' 間</span>' +
+      '<div class="meter"><i style="width:' + cPct + '%"></i></div>' +
+      '<span class="small muted">' + (s.cFormed ? '已成團，共 ' + cTotal + ' 間' : '登記滿 ' + s.cMin + ' 間且 A 區全滿才成團') + '</span></div>';
+  }
+
+  function renderRooms() {
+    var s = state.result.summary;
+    var zc = { A: 'za', B: 'zb', C: 'zc' };
+    $('roomRows').innerHTML = state.rooms.map(function (r) {
+      var left = s.left[r.id];
+      return '<tr><td class="zonecell ' + zc[r.zone] + '">' + r.zone + '</td>' +
+        '<td><div>' + esc(r.name) + '<span class="small muted">・' + esc(r.beds) + '</span></div><div class="small muted">' + esc(r.note) + '</div></td>' +
+        '<td class="r num">' + fmt(r.price) + '</td>' +
+        '<td class="r num ' + (left === 0 ? 'sold' : '') + '">' + (left === 0 ? '已滿' : left + ' / ' + r.qty) + '</td></tr>';
+    }).join('');
+  }
+
+  function prefOptions(selectedLeft) {
+    var s = state.result.summary;
+    return '<option value="">（不選）</option>' + state.rooms.filter(function (r) { return r.zone === 'A'; }).map(function (r) {
+      return '<option value="' + r.id + '">' + esc(r.name) + '・' + esc(r.beds) + '・' + fmt(r.price) + '・剩 ' + s.left[r.id] + '</option>';
+    }).join('');
+  }
+
+  function buildFormOptions() {
+    var keep = readForm();
+    var ac = '';
+    for (var i = 1; i <= state.maxA; i++) ac += '<option value="' + i + '">' + i + ' 間</option>';
+    $('f-acount').innerHTML = ac;
+    ['f-p1', 'f-p2', 'f-p3'].forEach(function (id) { $(id).innerHTML = prefOptions(); });
+    var zc = { B: 'zb', C: 'zc' };
+    var qtyOpts = '';
+    for (var q = 0; q <= state.maxExtra; q++) qtyOpts += '<option value="' + q + '">' + (q ? q + ' 間' : '不需要') + '</option>';
+    $('extras').innerHTML = state.rooms.filter(function (r) { return r.zone !== 'A'; }).map(function (r) {
+      var cond = r.zone === 'B' ? 'A 區全滿後開放' : 'A 區全滿且登記滿 ' + state.cMin + ' 間成團';
+      return '<div class="extra ' + zc[r.zone] + '">' +
+        '<div class="extra-head"><div><b>' + r.zone + ' 區・' + esc(r.name) + '</b> <span class="small muted">' + esc(r.beds) + '・' + fmt(r.price) + '</span>' +
+        '<div class="small muted">' + cond + (r.themes ? '・主題：' + esc(r.themes) : '') + '</div></div></div>' +
+        '<div class="row">' +
+        '<label for="x-qty-' + r.id + '">間數<select id="x-qty-' + r.id + '" data-room="' + r.id + '" class="xqty">' + qtyOpts + '</select></label>' +
+        '<div style="display:grid;gap:4px;font-size:.9rem"><span>用途</span><div class="seg" role="radiogroup" aria-label="' + esc(r.name) + ' 用途">' +
+        '<label for="x-add-' + r.id + '"><input type="radio" name="x-mode-' + r.id + '" id="x-add-' + r.id + '" value="add" checked><span>加訂</span></label>' +
+        '<label for="x-bk-' + r.id + '"><input type="radio" name="x-mode-' + r.id + '" id="x-bk-' + r.id + '" value="backup"><span>候補</span></label>' +
+        '</div></div></div></div>';
+    }).join('');
+    Array.prototype.forEach.call(document.querySelectorAll('.xqty'), function (sel) {
+      sel.addEventListener('change', syncModeDisabled);
+    });
+    if (keep) fillForm(keep);
+    syncModeDisabled();
+  }
+
+  function syncModeDisabled() {
+    Array.prototype.forEach.call(document.querySelectorAll('.xqty'), function (sel) {
+      var off = sel.value === '0';
+      document.querySelectorAll('input[name="x-mode-' + sel.dataset.room + '"]').forEach(function (i) { i.disabled = off; });
+    });
+  }
+
+  function readForm() {
+    if (!$('f-acount').options.length) return null;
+    var extras = [];
+    Array.prototype.forEach.call(document.querySelectorAll('.xqty'), function (sel) {
+      var m = document.querySelector('input[name="x-mode-' + sel.dataset.room + '"]:checked');
+      extras.push({ type: sel.dataset.room, qty: Number(sel.value), mode: m ? m.value : 'add' });
+    });
+    return {
+      name: $('f-name').value.trim(), adults: Number($('f-adults').value), kids: Number($('f-kids').value),
+      aCount: Number($('f-acount').value), aPrefs: [$('f-p1').value, $('f-p2').value, $('f-p3').value].filter(Boolean),
+      aAnyOk: $('f-any').checked, extras: extras, note: $('f-note').value.trim()
+    };
+  }
+
+  function fillForm(r) {
+    $('f-name').value = r.name || '';
+    $('f-adults').value = r.adults != null ? r.adults : 2;
+    $('f-kids').value = r.kids != null ? r.kids : 0;
+    $('f-acount').value = String(r.aCount || 1);
+    ['f-p1', 'f-p2', 'f-p3'].forEach(function (id, i) { $(id).value = (r.aPrefs || [])[i] || ''; });
+    $('f-any').checked = r.aAnyOk !== false;
+    $('f-note').value = r.note || '';
+    Array.prototype.forEach.call(document.querySelectorAll('.xqty'), function (sel) {
+      var ex = (r.extras || []).filter(function (e) { return e.type === sel.dataset.room; })[0];
+      sel.value = String(ex ? ex.qty : 0);
+      var radio = $((ex && ex.mode === 'backup' ? 'x-bk-' : 'x-add-') + sel.dataset.room);
+      if (radio) radio.checked = true;
+    });
+    syncModeDisabled();
+  }
+
+  function resetForm() {
+    editing = null;
+    fillForm({ name: '', adults: 2, kids: 1, aCount: 1, aPrefs: [], aAnyOk: true, extras: [], note: '' });
+    updateFormMode();
+  }
+
+  function updateFormMode() {
+    $('h-form').textContent = editing ? '修改登記' : '填寫登記';
+    $('submit').textContent = editing ? '儲存修改' : '送出登記';
+    $('newEntry').hidden = !editing;
+    renderMine();
+  }
+
+  function startEdit(id, editKey) {
+    var o = state.result.regs.filter(function (x) { return x.id === id; })[0];
+    if (!o) return;
+    editing = { id: id, editKey: editKey || '' };
+    fillForm({ name: o.name, adults: o.adults, kids: o.kids, note: o.note,
+               aCount: o.input.aCount, aPrefs: o.input.aPrefs, aAnyOk: o.input.aAnyOk, extras: o.input.extras });
+    updateFormMode();
+    $('msg').textContent = ''; $('msg').className = 'msg';
+    $('h-form').scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+  }
+
+  function renderMine() {
+    var mine = loadMine();
+    if (state) {
+      var ids = state.result.regs.map(function (o) { return o.id; });
+      mine = mine.filter(function (m) { return ids.indexOf(m.id) >= 0; });
+    }
+    if (!mine.length) { $('mine').hidden = true; return; }
+    $('mine').hidden = false;
+    $('mine').innerHTML = '<span class="muted">這台裝置登記過：</span>' + mine.map(function (m) {
+      var pressed = editing && editing.id === m.id;
+      return '<button class="btn" type="button" data-edit="' + esc(m.id) + '" aria-pressed="' + pressed + '">' + esc(m.name) + '</button>';
+    }).join('');
+  }
+
+  function renderList() {
+    var regs = state.result.regs;
+    var mineIds = loadMine().map(function (m) { return m.id; });
+    if (!regs.length) { $('list').innerHTML = '<div class="empty">還沒有人登記。上面的表單送出後，你的登記會出現在這裡。</div>'; return; }
+    $('list').innerHTML = regs.map(function (o) {
+      var me = mineIds.indexOf(o.id) >= 0;
+      var chips = o.lines.map(function (l) {
+        var r = l.type ? roomById(l.type) : null;
+        var label = (r ? r.name : 'A 區') + (l.zone !== 'A' ? (l.mode === 'backup' ? '（候補）' : '（加訂）') : '');
+        return '<span class="chip s-' + l.status + '"><b>' + l.zone + '</b>' + esc(label) + '・' + STATUS[l.status] + '</span>';
+      }).join('');
+      var canEdit = me || isAdmin;
+      return '<article class="entry' + (me ? ' me' : '') + '">' +
+        '<div class="entry-head"><span class="entry-name"><span class="seqno num">#' + o.seq + '</span>' + esc(o.name) + (me ? ' <span class="small" style="color:var(--accent)">（你）</span>' : '') + '</span>' +
+        '<span class="small muted num">大人 ' + o.adults + '・小孩 ' + o.kids + '</span></div>' +
+        '<div class="chips">' + chips + '</div>' +
+        (o.note ? '<p class="small muted">' + esc(o.note) + '</p>' : '') +
+        '<div class="entry-foot"><span class="num">已確定金額 <b>' + fmt(o.total) + '</b> 元</span>' +
+        (canEdit ? '<span class="actions"><button class="btn-link" type="button" data-edit="' + esc(o.id) + '">修改</button>' +
+          '<button class="btn-link btn-danger" type="button" data-del="' + esc(o.id) + '">刪除</button></span>' : '') +
+        '</div></article>';
+    }).join('');
+  }
+
+  function renderAll(fresh) {
+    if (fresh) buildFormOptions();
+    renderZones(); renderRooms(); renderList(); renderMine();
+    var d = new Date(state.at);
+    $('sync').textContent = '更新時間 ' + d.getHours() + ':' + String(d.getMinutes()).padStart(2, '0') + ':' + String(d.getSeconds()).padStart(2, '0');
+  }
+
+  function applyState(s) {
+    var first = !state;
+    // 下拉選單裡的剩餘數會變，表單已建立時只更新選項文字
+    state = s;
+    if (first) { buildFormOptions(); autoEdit(); }
+    else refreshPrefLabels();
+    renderAll(false);
+  }
+
+  function refreshPrefLabels() {
+    ['f-p1', 'f-p2', 'f-p3'].forEach(function (id) {
+      var v = $(id).value; $(id).innerHTML = prefOptions(); $(id).value = v;
+    });
+  }
+
+  function autoEdit() {
+    var mine = loadMine();
+    var ids = state.result.regs.map(function (o) { return o.id; });
+    var m = mine.filter(function (x) { return ids.indexOf(x.id) >= 0; })[0];
+    if (m) startEditQuiet(m);
+    else updateFormMode();
+  }
+  function startEditQuiet(m) {
+    var o = state.result.regs.filter(function (x) { return x.id === m.id; })[0];
+    editing = { id: m.id, editKey: m.editKey };
+    fillForm({ name: o.name, adults: o.adults, kids: o.kids, note: o.note,
+               aCount: o.input.aCount, aPrefs: o.input.aPrefs, aAnyOk: o.input.aAnyOk, extras: o.input.extras });
+    updateFormMode();
+  }
+
+  function load() {
+    if (!API) { $('setupNotice').hidden = false; $('sync').textContent = '未連接'; $('list').innerHTML = '<div class="empty">連接 Google 試算表後，登記會顯示在這裡。</div>'; return Promise.resolve(); }
+    $('sync').textContent = '更新中…';
+    return call('GET').then(function (s) {
+      if (!s.ok) throw new Error(s.error || '讀取失敗');
+      $('loadError').hidden = true;
+      applyState(s);
+    }).catch(function (e) {
+      $('loadError').hidden = false;
+      $('loadErrorText').textContent = '讀不到登記資料：' + e.message + '。請稍後按「重新整理」。';
+      $('sync').textContent = '讀取失敗';
+    });
+  }
+
+  // ───── 事件 ─────
+  $('form').addEventListener('submit', function (ev) {
+    ev.preventDefault();
+    if (!state) return;
+    var reg = readForm();
+    var msg = $('msg');
+    var err = !reg.name ? '請填寫姓名。' : (reg.adults + reg.kids < 1 ? '請填寫入住人數。' : (!reg.aPrefs.length ? '請至少選一個 A 區志願。' : ''));
+    if (err) { msg.textContent = err; msg.className = 'msg err'; return; }
+    $('submit').disabled = true; msg.textContent = '送出中…'; msg.className = 'msg';
+    call('POST', { action: 'save', id: editing ? editing.id : '', editKey: editing ? editing.editKey : '', adminKey: adminKey, reg: reg })
+      .then(function (r) {
+        if (!r.ok) throw new Error(r.error);
+        var mine = loadMine();
+        var existing = mine.filter(function (m) { return m.id === r.id; })[0];
+        var ownKey = editing && editing.editKey ? editing.editKey : (editing ? '' : r.editKey);
+        if (existing) existing.name = reg.name;
+        else if (ownKey) mine.push({ id: r.id, editKey: ownKey, name: reg.name });
+        saveMine(mine);
+        editing = ownKey || isAdmin ? { id: r.id, editKey: ownKey } : null;
+        state = r.state; renderAll(false); refreshPrefLabels(); updateFormMode();
+        var o = state.result.regs.filter(function (x) { return x.id === r.id; })[0];
+        var okCount = o ? o.lines.filter(function (l) { return l.status === 'ok'; }).length : 0;
+        msg.textContent = '已儲存。目前確定 ' + okCount + ' 間，其餘狀態會隨名額自動更新。';
+        msg.className = 'msg good';
+      })
+      .catch(function (e) { msg.textContent = '沒有存成功：' + e.message; msg.className = 'msg err'; })
+      .then(function () { $('submit').disabled = false; });
+  });
+
+  document.addEventListener('click', function (ev) {
+    var t = ev.target.closest('[data-edit],[data-del]');
+    if (!t) return;
+    var mine = loadMine();
+    if (t.dataset.edit) {
+      var m = mine.filter(function (x) { return x.id === t.dataset.edit; })[0];
+      startEdit(t.dataset.edit, m ? m.editKey : '');
+      return;
+    }
+    var id = t.dataset.del;
+    if (t.dataset.armed !== '1') { t.dataset.armed = '1'; t.textContent = '確定刪除？'; setTimeout(function () { if (t.isConnected) { t.dataset.armed = ''; t.textContent = '刪除'; } }, 4000); return; }
+    var mm = mine.filter(function (x) { return x.id === id; })[0];
+    t.textContent = '刪除中…';
+    call('POST', { action: 'delete', id: id, editKey: mm ? mm.editKey : '', adminKey: adminKey }).then(function (r) {
+      if (!r.ok) throw new Error(r.error);
+      saveMine(mine.filter(function (x) { return x.id !== id; }));
+      if (editing && editing.id === id) resetForm();
+      state = r.state; renderAll(false); refreshPrefLabels();
+    }).catch(function (e) { t.textContent = '刪除失敗'; $('msg').textContent = e.message; $('msg').className = 'msg err'; });
+  });
+
+  $('newEntry').addEventListener('click', function () { resetForm(); $('msg').textContent = ''; $('f-name').focus(); });
+  $('refresh').addEventListener('click', load);
+  document.addEventListener('visibilitychange', function () { if (!document.hidden) load(); });
+  setInterval(function () { if (!document.hidden && !$('submit').disabled) load(); }, 45000);
+
+  if (API && adminKey) {
+    call('POST', { action: 'checkAdmin', adminKey: adminKey }).then(function (r) {
+      isAdmin = !!r.ok; $('adminTag').hidden = !isAdmin; if (state) renderList();
+    }).catch(function () {});
+  }
+  load();
+})();
+</script>
+</body>
+</html>
