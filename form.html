@@ -1,0 +1,346 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>2027 包棟房間登記</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chiron+GoRound+TC:wght@500;700&family=Noto+Sans+TC:wght@400;500;700&display=swap">
+<script>
+/* ───── 連接 Google 表單 ─────
+ * 在 Apps Script 執行 exportHtmlConfig，把執行記錄印出的整行 JSON 貼在等號後面取代 null。
+ * 例：var FORM_CONFIG = {"action":"https://docs.google.com/forms/d/e/.../formResponse","entries":{...}};
+ * 維持 null 時是預覽模式，可以操作但不會送出。
+ */
+var FORM_CONFIG = null;
+</script>
+<style>
+/* 版面：單欄、手機優先；說明與價格表在上，四個分類各一張卡片，送出列固定在最後 */
+:root {
+  --bg: #eef3f1;
+  --surface: #ffffff;
+  --line: #d6e0dc;
+  --ink: #1c2a28;
+  --muted: #5a6b67;
+  --accent: #d2452b;
+  --accent-ink: #ffffff;
+  --c1: #1f7a6d;
+  --c2: #8a4bb0;
+  --c3: #2f63c9;
+  --ok: #1d7f45; --ok-bg: #e2f4e8;
+  --display: "Chiron GoRound TC", "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif;
+  --body: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", system-ui, sans-serif;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #121a19; --surface: #1b2624; --line: #2e3d3a; --ink: #e6efec; --muted: #9db0ab;
+    --accent: #f06a4f; --accent-ink: #1a0d09;
+    --c1: #4cc1ae; --c2: #c99be6; --c3: #7fa6ff;
+    --ok: #6fd69a; --ok-bg: #173826;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #121a19; --surface: #1b2624; --line: #2e3d3a; --ink: #e6efec; --muted: #9db0ab;
+  --accent: #f06a4f; --accent-ink: #1a0d09;
+  --c1: #4cc1ae; --c2: #c99be6; --c3: #7fa6ff;
+  --ok: #6fd69a; --ok-bg: #173826;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.65 var(--body);
+  padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+[hidden] { display: none !important; }
+.wrap { max-width: 720px; margin: 0 auto; padding-inline: 16px; padding-block: 28px 64px; display: grid; gap: 22px; }
+h1, h2, h3 { font-family: var(--display); margin: 0; line-height: 1.3; text-wrap: balance; }
+h1 { font-size: 2rem; }
+h2 { font-size: 1.25rem; }
+p { margin: 0; }
+.muted { color: var(--muted); }
+.small { font-size: .86rem; }
+.num { font-variant-numeric: tabular-nums; }
+.eyebrow { font-size: .8rem; letter-spacing: .12em; color: var(--accent); font-weight: 700; }
+:focus-visible { outline: 3px solid var(--c3); outline-offset: 2px; }
+
+header { display: grid; gap: 10px; }
+.rules { margin: 0; padding-left: 1.2em; display: grid; gap: 2px; }
+.preview { border: 1px dashed var(--accent); border-radius: 12px; padding: 10px 14px; font-size: .9rem; background: var(--surface); }
+
+.card { background: var(--surface); border-radius: 16px; padding: 18px; display: grid; gap: 14px; border-top: 4px solid var(--cc, var(--line)); }
+.card-head { display: grid; gap: 4px; }
+.tag { font-family: var(--display); font-weight: 700; color: var(--cc); font-size: .9rem; }
+.k1 { --cc: var(--c1); } .k2 { --cc: var(--c2); } .k3 { --cc: var(--c3); }
+
+/* 價格表 */
+details summary { cursor: pointer; font-weight: 700; }
+.tablebox { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: .9rem; }
+th, td { text-align: left; padding: 7px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-size: .78rem; color: var(--muted); font-weight: 500; }
+td.r, th.r { text-align: right; white-space: nowrap; }
+tr.group td { font-family: var(--display); font-weight: 700; color: var(--cc); border-bottom: 0; padding-top: 14px; }
+
+/* 欄位 */
+label.field { display: grid; gap: 4px; font-size: .92rem; }
+.req { color: var(--accent); }
+.row { display: flex; flex-wrap: wrap; gap: 12px; }
+.row > * { flex: 1 1 140px; min-width: 0; }
+input[type=text], input[type=number], textarea {
+  width: 100%; font: inherit; color: inherit; border: 1px solid var(--line); border-radius: 10px; padding: 9px 11px; background: var(--bg);
+}
+textarea { min-height: 80px; resize: vertical; }
+
+/* 房間列：名稱在上，選項在下 */
+.rooms { display: grid; gap: 0; }
+.room { display: grid; gap: 8px; padding-block: 12px; border-bottom: 1px solid var(--line); }
+.room:last-child { border-bottom: 0; padding-bottom: 0; }
+.room:first-child { padding-top: 0; }
+.room-name { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 2px 10px; }
+.room-name b { font-weight: 700; }
+.seg { display: flex; flex-wrap: wrap; gap: 6px; }
+.seg label { position: relative; }
+.seg input { position: absolute; opacity: 0; pointer-events: none; }
+.seg span { display: block; padding: 6px 13px; border: 1px solid var(--line); border-radius: 999px; font-size: .9rem; cursor: pointer; background: var(--bg); }
+.seg input:checked + span { background: var(--cc); border-color: var(--cc); color: var(--surface); font-weight: 700; }
+.seg input:focus-visible + span { outline: 3px solid var(--c3); outline-offset: 2px; }
+.seg input:disabled + span { opacity: .35; cursor: not-allowed; }
+.checks { display: flex; flex-wrap: wrap; gap: 6px 16px; }
+.checks label { display: flex; gap: 6px; align-items: center; font-size: .92rem; }
+
+.foot { display: grid; gap: 10px; }
+.btn { font: inherit; background: var(--accent); color: var(--accent-ink); border: 0; border-radius: 12px; padding: 13px 22px; font-weight: 700; font-size: 1rem; cursor: pointer; justify-self: start; }
+.btn:disabled { opacity: .55; cursor: wait; }
+.msg { font-size: .92rem; }
+.msg.err { color: var(--accent); }
+.done { background: var(--ok-bg); color: var(--ink); border-radius: 16px; padding: 18px; display: grid; gap: 10px; }
+.done h2 { color: var(--ok); }
+.done ul { margin: 0; padding-left: 1.2em; }
+.linkbtn { font: inherit; background: none; border: 0; padding: 0; color: var(--c3); text-decoration: underline; cursor: pointer; justify-self: start; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <p class="eyebrow">2027 包棟住宿</p>
+    <h1>包棟房間登記</h1>
+    <p>這是<b>統計用</b>的登記，不是搶房，沒有先到先得。請每個家庭填一次想住的房型和間數；同一房型登記超過間數時，大家再一起協調。</p>
+    <ul class="rules small">
+      <li><b>分類 1 包棟必選區</b>：每個家庭至少選一間</li>
+      <li><b>分類 2 四間包區</b>：分類 1 住滿，且包區登記滿 3 間才成立</li>
+      <li><b>分類 3 包棟加選區</b>：分類 1 住滿之後才開放</li>
+    </ul>
+    <p class="preview" id="previewNote" hidden>預覽模式：這個頁面還沒連接 Google 表單，可以試填，但按送出不會真的送出。</p>
+  </header>
+
+  <section class="card" aria-labelledby="h-price">
+    <details id="priceBox">
+      <summary id="h-price">房型與價格表（2026 價與 2027 價）</summary>
+      <div class="tablebox" style="margin-top:10px">
+        <table>
+          <thead><tr><th>房型</th><th class="r">間數</th><th class="r">2026 價</th><th class="r">2027 價</th></tr></thead>
+          <tbody id="priceRows"></tbody>
+        </table>
+      </div>
+    </details>
+  </section>
+
+  <form id="form" novalidate style="display:grid;gap:22px">
+    <section class="card" aria-labelledby="h-basic">
+      <div class="card-head"><h2 id="h-basic">基本資料</h2></div>
+      <label class="field" for="f-name">姓名（家庭代表）<span class="req">*</span>
+        <input type="text" id="f-name" maxlength="30" autocomplete="name" placeholder="例如：王小明">
+      </label>
+      <div class="row">
+        <label class="field" for="f-adults">大人人數 <span class="req">*</span>
+          <input type="number" id="f-adults" min="0" max="20" value="2" inputmode="numeric">
+        </label>
+        <label class="field" for="f-kids">小孩人數 <span class="req">*</span>
+          <input type="number" id="f-kids" min="0" max="20" value="1" inputmode="numeric">
+        </label>
+      </div>
+    </section>
+
+    <section class="card k1" aria-labelledby="h-c1">
+      <div class="card-head">
+        <span class="tag">分類 1・必選</span>
+        <h2 id="h-c1">包棟必選區</h2>
+        <p class="small muted">每個家庭至少選一間。只有 1 間的房型不能選 2 間。</p>
+      </div>
+      <div class="rooms" id="rooms1"></div>
+      <div style="display:grid;gap:6px">
+        <span class="small"><b>如果要協調，你也可以接受哪些房型？</b>（可複選，可不填）</span>
+        <div class="checks" id="alts"></div>
+      </div>
+    </section>
+
+    <section class="card k2" aria-labelledby="h-c2">
+      <div class="card-head">
+        <span class="tag">分類 2・可不選</span>
+        <h2 id="h-c2">四間包區</h2>
+        <p class="small muted">分類 1 的房間住滿，且包區登記滿 3 間，才達包區標準。每間 6,800 元（原價 7,125，老闆降價）。<br>想住：分類 1 之外再多住一間。候補：分類 1 協調不到房間時才需要。</p>
+      </div>
+      <div class="rooms" id="rooms2"></div>
+    </section>
+
+    <section class="card k3" aria-labelledby="h-c3">
+      <div class="card-head">
+        <span class="tag">分類 3・可不選</span>
+        <h2 id="h-c3">包棟加選區</h2>
+        <p class="small muted">分類 1 的房間住滿之後才會開放。每間 3,600 元（3,800 減老客戶折扣 200）。<br>想住：分類 1 之外再多住。候補：分類 1 協調不到房間時才需要。</p>
+      </div>
+      <div class="rooms" id="rooms3"></div>
+    </section>
+
+    <section class="card" aria-labelledby="h-note">
+      <div class="card-head"><h2 id="h-note">備註</h2></div>
+      <label class="field small muted" for="f-note">例如：想和誰住隔壁、小孩年齡、其他需求
+        <textarea id="f-note" maxlength="300"></textarea>
+      </label>
+    </section>
+
+    <div class="foot">
+      <button class="btn" type="submit" id="submit">送出登記</button>
+      <span class="msg" id="msg" role="status"></span>
+    </div>
+  </form>
+
+  <section class="done" id="done" hidden aria-live="polite">
+    <h2>已送出，謝謝！</h2>
+    <p id="doneName"></p>
+    <ul id="doneList"></ul>
+    <p class="small">之後協調要修改時，用<b>同一個姓名重新送出一次</b>即可，統計以最新一筆為準。</p>
+    <button class="linkbtn" type="button" id="again">重新填寫</button>
+  </section>
+</div>
+
+<script>
+(function () {
+  // 列名與選項文字必須和 Google 表單完全一致（送出時用的是文字本身）
+  var CAT1 = [
+    { row: '吉普三人房（1大床+1小床）4,700 元，共 2 間', name: '吉普三人房', beds: '1大床+1小床', qty: 2, p26: '4,900', p27: '4,700', why: '老客戶折扣 200' },
+    { row: '子母四人房（1大床+2小床）5,600 元，共 2 間', name: '子母四人房', beds: '1大床+2小床', qty: 2, p26: '5,800', p27: '5,600', why: '老客戶折扣 200' },
+    { row: '火車四人秋千房（1大床+2小床）6,600 元，共 1 間', name: '火車四人秋千房', beds: '1大床+2小床', qty: 1, p26: '6,800', p27: '6,600', why: '老客戶折扣 200' },
+    { row: '兔窩四人秋千房（1大床+2小床）6,600 元，共 1 間', name: '兔窩四人秋千房', beds: '1大床+2小床', qty: 1, p26: '6,800', p27: '6,600', why: '老客戶折扣 200' },
+    { row: '城堡四人秋千房（1大床+2小床）6,600 元，共 1 間', name: '城堡四人秋千房', beds: '1大床+2小床', qty: 1, p26: '6,800', p27: '6,600', why: '老客戶折扣 200' },
+    { row: '消防英雄滑梯房（2大床）6,600 元，共 2 間', name: '消防英雄滑梯房', beds: '2大床', qty: 2, p26: '6,800', p27: '6,600', why: '老客戶折扣 200' },
+    { row: '超跑星空滑梯房（2大床）6,600 元，共 1 間', name: '超跑星空滑梯房', beds: '2大床', qty: 1, p26: '6,800', p27: '6,600', why: '老客戶折扣 200' },
+    { row: '快樂巴士滑梯房（2大床）6,800 元，共 2 間', name: '快樂巴士滑梯房', beds: '2大床', qty: 2, p26: '6,800', p27: '6,800', why: '原價 7,700，老闆降價' }
+  ];
+  var COLS1 = ['不需要', '1 間', '2 間'];
+  var CAT2 = [
+    { row: '包區兔兔房（2大床）', name: '包區兔兔房', beds: '2大床', qty: 1, p26: '6,800', p27: '6,800', why: '原價 7,125，老闆降價' },
+    { row: '包區航海房（2大床）', name: '包區航海房', beds: '2大床', qty: 1, p26: '6,800', p27: '6,800', why: '原價 7,125，老闆降價' },
+    { row: '包區樂高房（2大床）', name: '包區樂高房', beds: '2大床', qty: 1, p26: '6,800', p27: '6,800', why: '原價 7,125，老闆降價' },
+    { row: '包區恐龍房（2大床）', name: '包區恐龍房', beds: '2大床', qty: 1, p26: '6,800', p27: '6,800', why: '原價 7,125，老闆降價' }
+  ];
+  var COLS2 = ['不需要', '想住', '候補'];
+  var CAT3 = [
+    { row: '水上漂雙人房（雙人床+120cm 小床），共 2 間', name: '水上漂雙人房', beds: '雙人床+120cm 小床', qty: 2, p26: '4,800', p27: '3,600', why: '3,800 減老客戶折扣 200' },
+    { row: '丟丟噹雙人房（雙人床），共 2 間', name: '丟丟噹雙人房', beds: '雙人床', qty: 2, p26: '未知', p27: '3,600', why: '3,800 減老客戶折扣 200' }
+  ];
+  var COLS3 = ['不需要', '想住 1 間', '想住 2 間', '候補 1 間', '候補 2 間'];
+
+  var $ = function (id) { return document.getElementById(id); };
+  function esc(s) { var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+  function needsTwo(col) { return /2 間/.test(col); }
+
+  // 價格表
+  var groups = [['k1', '分類 1 包棟必選區（共 12 間）', CAT1], ['k2', '分類 2 四間包區（共 4 間）', CAT2], ['k3', '分類 3 包棟加選區（共 4 間）', CAT3]];
+  $('priceRows').innerHTML = groups.map(function (g) {
+    return '<tr class="group ' + g[0] + '"><td colspan="4">' + g[1] + '</td></tr>' + g[2].map(function (r) {
+      return '<tr><td>' + esc(r.name) + '<div class="small muted">' + esc(r.beds) + '・' + esc(r.why) + '</div></td>' +
+        '<td class="r num">' + r.qty + '</td><td class="r num">' + r.p26 + '</td><td class="r num"><b>' + r.p27 + '</b></td></tr>';
+    }).join('');
+  }).join('');
+
+  // 房間選項
+  function renderRooms(el, list, cols, prefix) {
+    $(el).innerHTML = list.map(function (r, i) {
+      var opts = cols.map(function (c, j) {
+        var id = prefix + i + '-' + j;
+        var dis = r.qty < 2 && needsTwo(c) ? ' disabled' : '';
+        return '<label for="' + id + '"><input type="radio" id="' + id + '" name="' + prefix + i + '" value="' + esc(c) + '"' + (j === 0 ? ' checked' : '') + dis + '><span>' + esc(c) + '</span></label>';
+      }).join('');
+      return '<div class="room"><div class="room-name"><span><b>' + esc(r.name) + '</b> <span class="small muted">' + esc(r.beds) + '</span></span>' +
+        '<span class="small muted num">' + r.p27 + ' 元・共 ' + r.qty + ' 間</span></div>' +
+        '<div class="seg" role="radiogroup" aria-label="' + esc(r.name) + '">' + opts + '</div></div>';
+    }).join('');
+  }
+  renderRooms('rooms1', CAT1, COLS1, 'a');
+  renderRooms('rooms2', CAT2, COLS2, 'b');
+  renderRooms('rooms3', CAT3, COLS3, 'c');
+  $('alts').innerHTML = CAT1.map(function (r, i) {
+    return '<label for="alt' + i + '"><input type="checkbox" id="alt' + i + '" value="' + esc(r.name) + '">' + esc(r.name) + '</label>';
+  }).join('');
+
+  if (!FORM_CONFIG) $('previewNote').hidden = false;
+
+  function picked(prefix, list) {
+    return list.map(function (r, i) {
+      var c = document.querySelector('input[name="' + prefix + i + '"]:checked');
+      return c ? c.value : '';
+    });
+  }
+
+  $('form').addEventListener('submit', function (ev) {
+    ev.preventDefault();
+    var msg = $('msg');
+    var name = $('f-name').value.trim();
+    var adults = $('f-adults').value.trim(), kids = $('f-kids').value.trim();
+    var a = picked('a', CAT1), b = picked('b', CAT2), c = picked('c', CAT3);
+    var alts = Array.prototype.filter.call(document.querySelectorAll('#alts input'), function (x) { return x.checked; }).map(function (x) { return x.value; });
+    var note = $('f-note').value.trim();
+    var bad = function (v) { return v === '' || isNaN(+v) || +v < 0 || +v > 20; };
+    var err = !name ? '請填寫姓名。' :
+      (bad(adults) || bad(kids) ? '人數請填 0 到 20 的數字。' :
+      (+adults + +kids < 1 ? '請填寫入住人數。' :
+      (a.every(function (v) { return v === '不需要'; }) ? '分類 1 包棟必選區至少要選一間。' : '')));
+    if (err) { msg.textContent = err; msg.className = 'msg err'; return; }
+
+    var summary = [];
+    a.forEach(function (v, i) { if (v !== '不需要') summary.push('分類 1：' + CAT1[i].name + ' ' + v); });
+    b.forEach(function (v, i) { if (v !== '不需要') summary.push('分類 2：' + CAT2[i].name + ' ' + v); });
+    c.forEach(function (v, i) { if (v !== '不需要') summary.push('分類 3：' + CAT3[i].name + ' ' + v); });
+    if (alts.length) summary.push('也可以接受：' + alts.join('、'));
+
+    function showDone() {
+      $('doneName').textContent = name + '（大人 ' + adults + '、小孩 ' + kids + '）';
+      $('doneList').innerHTML = summary.map(function (s) { return '<li>' + esc(s) + '</li>'; }).join('');
+      $('form').hidden = true; $('done').hidden = false;
+      $('done').scrollIntoView({ block: 'start' });
+    }
+
+    if (!FORM_CONFIG) {
+      msg.textContent = '預覽模式：檢查通過，但還沒連接 Google 表單，所以沒有送出。'; msg.className = 'msg';
+      return;
+    }
+    var e = FORM_CONFIG.entries, p = new URLSearchParams();
+    p.append(e.name, name); p.append(e.adults, adults); p.append(e.kids, kids);
+    e.catA.forEach(function (id, i) { p.append(id, a[i]); });
+    e.catB.forEach(function (id, i) { p.append(id, b[i]); });
+    e.catC.forEach(function (id, i) { p.append(id, c[i]); });
+    alts.forEach(function (v) { p.append(e.alts, v); });
+    if (note) p.append(e.note, note);
+    p.append('fvv', '1');
+    p.append('pageHistory', '0,1,2,3,4');
+
+    $('submit').disabled = true; msg.textContent = '送出中…'; msg.className = 'msg';
+    fetch(FORM_CONFIG.action, { method: 'POST', mode: 'no-cors', body: p })
+      .then(showDone)
+      .catch(function () { msg.textContent = '送出失敗，請檢查網路後再試一次。'; msg.className = 'msg err'; })
+      .then(function () { $('submit').disabled = false; });
+  });
+
+  $('again').addEventListener('click', function () {
+    $('done').hidden = true; $('form').hidden = false; $('msg').textContent = '';
+    $('f-name').focus();
+  });
+})();
+</script>
+</body>
+</html>
