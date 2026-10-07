@@ -19,6 +19,27 @@
  * 協調好之後由本人或管理員修改登記即可。
  */
 
+// ───────────── 第一次使用：在上方函式下拉選單選這個「setup」執行 ─────────────
+// （其他函式是給網頁呼叫的，請不要直接執行）
+function setup() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var data = ss.getSheetByName(SHEET_DATA) || ss.insertSheet(SHEET_DATA);
+  if (data.getLastRow() === 0) {
+    data.appendRow(DATA_HEADERS);
+    data.setFrozenRows(1);
+    data.getRange(1, 1, 1, DATA_HEADERS.length).setFontWeight('bold');
+  }
+  [SHEET_SUMMARY, SHEET_DETAIL].forEach(function (n) { if (!ss.getSheetByName(n)) ss.insertSheet(n); });
+  var first = ss.getSheetByName('工作表1') || ss.getSheetByName('Sheet1');
+  if (first && ss.getSheets().length > 1) ss.deleteSheet(first);
+  var props = PropertiesService.getScriptProperties();
+  var key = props.getProperty('ADMIN_KEY');
+  if (!key) { key = Utilities.getUuid().slice(0, 8); props.setProperty('ADMIN_KEY', key); }
+  writeReports(readRegs());
+  Logger.log('設定完成。管理員金鑰：' + key + '（在網頁網址後面加 ?admin=' + key + ' 即可修改或刪除任何登記）');
+}
+
+
 // ───────────── 房型設定（改價格或數量只要改這裡） ─────────────
 // zone：'1' 包棟必選區、'2' 四間包區、'3' 包棟加選區
 var ROOMS = [
@@ -59,6 +80,7 @@ function nameOrder(name) {
  * 分類 2、3 的「候補」只在分類 1 協調不到時才需要，所以另外計數，不算進衝突。
  */
 function summarize(regs, rooms) {
+  regs = regs || [];
   rooms = rooms || ROOMS;
   var order = regs.slice().sort(function (x, y) {
     return nameOrder(x.name) - nameOrder(y.name) || (x.createdAt || 0) - (y.createdAt || 0) || String(x.id).localeCompare(String(y.id));
@@ -127,24 +149,6 @@ var SHEET_DATA = '登記資料';
 var SHEET_DETAIL = '登記明細';
 var SHEET_SUMMARY = '房型統計';
 var DATA_HEADERS = ['id', 'editKey', 'createdAt', 'updatedAt', '座號/身分', '大人', '小孩', '房間(JSON)', '可接受分類1(JSON)', '特殊需求'];
-
-function setup() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var data = ss.getSheetByName(SHEET_DATA) || ss.insertSheet(SHEET_DATA);
-  if (data.getLastRow() === 0) {
-    data.appendRow(DATA_HEADERS);
-    data.setFrozenRows(1);
-    data.getRange(1, 1, 1, DATA_HEADERS.length).setFontWeight('bold');
-  }
-  [SHEET_SUMMARY, SHEET_DETAIL].forEach(function (n) { if (!ss.getSheetByName(n)) ss.insertSheet(n); });
-  var first = ss.getSheetByName('工作表1') || ss.getSheetByName('Sheet1');
-  if (first && ss.getSheets().length > 1) ss.deleteSheet(first);
-  var props = PropertiesService.getScriptProperties();
-  var key = props.getProperty('ADMIN_KEY');
-  if (!key) { key = Utilities.getUuid().slice(0, 8); props.setProperty('ADMIN_KEY', key); }
-  writeReports(readRegs());
-  Logger.log('設定完成。管理員金鑰：' + key + '（在網頁網址後面加 ?admin=' + key + ' 即可修改或刪除任何登記）');
-}
 
 function readRegs() {
   var sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_DATA);
