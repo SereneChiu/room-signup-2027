@@ -83,6 +83,8 @@ table { border-collapse: collapse; width: 100%; font-size: .9rem; }
 th, td { text-align: left; padding: 7px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
 th { font-size: .78rem; color: var(--muted); font-weight: 500; }
 td.r, th.r { text-align: right; white-space: nowrap; }
+.show26 { display: flex; gap: 6px; align-items: center; margin-block: 10px 4px; color: var(--muted); }
+.hide26 .col26 { display: none; }
 tr.group td { font-family: var(--display); font-weight: 700; color: var(--cc); border-bottom: 0; padding-top: 14px; }
 
 /* 欄位 */
@@ -139,10 +141,11 @@ textarea { min-height: 80px; resize: vertical; }
 
   <section class="card" aria-labelledby="h-price">
     <details id="priceBox">
-      <summary id="h-price">房型與價格表（2026 價與 2027 價）</summary>
-      <div class="tablebox" style="margin-top:10px">
-        <table>
-          <thead><tr><th>房型</th><th class="r">間數</th><th class="r">2026 價</th><th class="r">2027 價</th></tr></thead>
+      <summary id="h-price">房型與價格表（2027 價格）</summary>
+      <label class="show26 small" for="show26"><input type="checkbox" id="show26">顯示 2026 價格</label>
+      <div class="tablebox">
+        <table id="priceTable" class="hide26">
+          <thead><tr><th>房型</th><th class="r">間數</th><th class="r col26">2026 價</th><th class="r">2027 價</th></tr></thead>
           <tbody id="priceRows"></tbody>
         </table>
       </div>
@@ -198,7 +201,7 @@ textarea { min-height: 80px; resize: vertical; }
 
     <section class="card" aria-labelledby="h-note">
       <div class="card-head"><h2 id="h-note">備註</h2></div>
-      <label class="field small muted" for="f-note">例如：想和誰住隔壁、小孩年齡、其他需求
+      <label class="field small muted" for="f-note">特殊需求
         <textarea id="f-note" maxlength="300"></textarea>
       </label>
     </section>
@@ -254,7 +257,7 @@ textarea { min-height: 80px; resize: vertical; }
   $('priceRows').innerHTML = groups.map(function (g) {
     return '<tr class="group ' + g[0] + '"><td colspan="4">' + g[1] + '</td></tr>' + g[2].map(function (r) {
       return '<tr><td>' + esc(r.name) + '<div class="small muted">' + esc(r.beds) + '・' + esc(r.why) + '</div></td>' +
-        '<td class="r num">' + r.qty + '</td><td class="r num">' + r.p26 + '</td><td class="r num"><b>' + r.p27 + '</b></td></tr>';
+        '<td class="r num">' + r.qty + '</td><td class="r num col26">' + r.p26 + '</td><td class="r num"><b>' + r.p27 + '</b></td></tr>';
     }).join('');
   }).join('');
 
@@ -277,6 +280,16 @@ textarea { min-height: 80px; resize: vertical; }
   $('alts').innerHTML = CAT1.map(function (r, i) {
     return '<label for="alt' + i + '"><input type="checkbox" id="alt' + i + '" value="' + esc(r.name) + '">' + esc(r.name) + '</label>';
   }).join('');
+
+  $('show26').addEventListener('change', function () {
+    $('priceTable').classList.toggle('hide26', !this.checked);
+    groupSpan();
+  });
+  function groupSpan() {
+    var n = $('show26').checked ? 4 : 3;
+    Array.prototype.forEach.call(document.querySelectorAll('tr.group td'), function (td) { td.colSpan = n; });
+  }
+  groupSpan();
 
   if (!FORM_CONFIG) $('previewNote').hidden = false;
 

@@ -3,27 +3,27 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>2027 房間登記</title>
+<title>2027 包棟房間登記</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chiron+GoRound+TC:wght@500;700&family=Noto+Sans+TC:wght@400;500;700&display=swap">
 <style>
-/* 版面：單欄、手機優先；上方三區進度條，下方房型表 → 登記表單 → 大家的登記 */
+/* 版面：單欄、手機優先；上方兩個分頁（填寫／統計），每個分類一張卡片 */
 :root {
   --bg: #eef3f1;
   --surface: #ffffff;
   --line: #d6e0dc;
   --ink: #1c2a28;
   --muted: #5a6b67;
-  --accent: #d2452b;      /* 消防車紅 */
+  --accent: #d2452b;
   --accent-ink: #ffffff;
-  --zone-a: #1f7a6d;
-  --zone-b: #2f63c9;
-  --zone-c: #8a4bb0;
-  --ok: #1d7f45;      --ok-bg: #e2f4e8;
-  --wait: #a35d00;    --wait-bg: #fdf0d9;
-  --pend: #3d5a80;    --pend-bg: #e4ecf7;
-  --off: #6b7774;     --off-bg: #eceff0;
+  --c1: #1f7a6d;
+  --c2: #8a4bb0;
+  --c3: #2f63c9;
+  --ok: #1d7f45; --ok-bg: #e2f4e8;
+  --wait: #a35d00; --wait-bg: #fdf0d9;
+  --pend: #3d5a80; --pend-bg: #e4ecf7;
+  --off-bg: #eceff0;
   --display: "Chiron GoRound TC", "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif;
   --body: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", system-ui, sans-serif;
   color-scheme: light;
@@ -32,243 +32,313 @@
   :root:not([data-theme="light"]) {
     --bg: #121a19; --surface: #1b2624; --line: #2e3d3a; --ink: #e6efec; --muted: #9db0ab;
     --accent: #f06a4f; --accent-ink: #1a0d09;
-    --zone-a: #4cc1ae; --zone-b: #7fa6ff; --zone-c: #c99be6;
-    --ok: #6fd69a; --ok-bg: #173826; --wait: #f2b25c; --wait-bg: #3a2a12;
-    --pend: #9fbbe6; --pend-bg: #1f2c40; --off: #93a19d; --off-bg: #252f2d;
+    --c1: #4cc1ae; --c2: #c99be6; --c3: #7fa6ff;
+    --ok: #6fd69a; --ok-bg: #173826;
+    --wait: #f2b25c; --wait-bg: #3a2a12; --pend: #9fbbe6; --pend-bg: #1f2c40; --off-bg: #252f2d;
     color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
   --bg: #121a19; --surface: #1b2624; --line: #2e3d3a; --ink: #e6efec; --muted: #9db0ab;
   --accent: #f06a4f; --accent-ink: #1a0d09;
-  --zone-a: #4cc1ae; --zone-b: #7fa6ff; --zone-c: #c99be6;
-  --ok: #6fd69a; --ok-bg: #173826; --wait: #f2b25c; --wait-bg: #3a2a12;
-  --pend: #9fbbe6; --pend-bg: #1f2c40; --off: #93a19d; --off-bg: #252f2d;
+  --c1: #4cc1ae; --c2: #c99be6; --c3: #7fa6ff;
+  --ok: #6fd69a; --ok-bg: #173826;
+  --wait: #f2b25c; --wait-bg: #3a2a12; --pend: #9fbbe6; --pend-bg: #1f2c40; --off-bg: #252f2d;
   color-scheme: dark;
 }
 * { box-sizing: border-box; }
 html { -webkit-text-size-adjust: 100%; }
 body {
-  margin: 0; background: var(--bg); color: var(--ink);
-  font: 15px/1.6 var(--body);
+  margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.65 var(--body);
   padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 [hidden] { display: none !important; }
-.wrap { max-width: 760px; margin: 0 auto; padding-inline: 16px; padding-block: 28px 64px; display: grid; gap: 28px; }
-h1, h2, h3 { font-family: var(--display); margin: 0; text-wrap: balance; line-height: 1.3; }
+.wrap { max-width: 720px; margin: 0 auto; padding-inline: 16px; padding-block: 28px 64px; display: grid; gap: 22px; }
+h1, h2, h3 { font-family: var(--display); margin: 0; line-height: 1.3; text-wrap: balance; }
 h1 { font-size: 2rem; }
-h2 { font-size: 1.3rem; }
-h3 { font-size: 1.05rem; }
+h2 { font-size: 1.25rem; }
 p { margin: 0; }
 .muted { color: var(--muted); }
-.small { font-size: .85rem; }
+.small { font-size: .86rem; }
 .num { font-variant-numeric: tabular-nums; }
-
-header { display: grid; gap: 8px; }
 .eyebrow { font-size: .8rem; letter-spacing: .12em; color: var(--accent); font-weight: 700; }
-.syncline { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; font-size: .85rem; color: var(--muted); }
+:focus-visible { outline: 3px solid var(--c3); outline-offset: 2px; }
 
-button, select, input, textarea { font: inherit; color: inherit; }
-button { cursor: pointer; }
-:focus-visible { outline: 3px solid var(--zone-b); outline-offset: 2px; }
-.btn { border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 6px 14px; }
-.btn:hover { border-color: var(--muted); }
-.btn-primary { background: var(--accent); color: var(--accent-ink); border: 0; border-radius: 12px; padding: 12px 22px; font-weight: 700; font-size: 1rem; }
-.btn-primary:disabled { opacity: .55; cursor: wait; }
-.btn-link { border: 0; background: none; color: var(--zone-b); padding: 0; text-decoration: underline; }
-.btn-danger { color: var(--accent); }
+header { display: grid; gap: 10px; }
+.rules { margin: 0; padding-left: 1.2em; display: grid; gap: 2px; }
+.preview { border: 1px dashed var(--accent); border-radius: 12px; padding: 10px 14px; font-size: .9rem; background: var(--surface); }
 
-.notice { border: 1px dashed var(--accent); border-radius: 12px; padding: 14px 16px; background: var(--surface); display: grid; gap: 6px; }
+.card { background: var(--surface); border-radius: 16px; padding: 18px; display: grid; gap: 14px; border-top: 4px solid var(--cc, var(--line)); }
+.card-head { display: grid; gap: 4px; }
+.tag { font-family: var(--display); font-weight: 700; color: var(--cc); font-size: .9rem; }
+.k1 { --cc: var(--c1); } .k2 { --cc: var(--c2); } .k3 { --cc: var(--c3); }
 
-/* 三區進度 */
-.zones { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
-@media (max-width: 560px) { .zones { grid-template-columns: 1fr; } }
-.zone { background: var(--surface); border-radius: 14px; padding: 14px 16px; display: grid; gap: 6px; border-top: 4px solid var(--zc); }
-.zone .tag { font-family: var(--display); font-weight: 700; color: var(--zc); }
-.zone .big { font-family: var(--display); font-size: 1.6rem; line-height: 1.1; }
-.meter { height: 8px; background: var(--off-bg); border-radius: 99px; overflow: hidden; }
-.meter > i { display: block; height: 100%; background: var(--zc); border-radius: 99px; transition: width .4s; }
-@media (prefers-reduced-motion: reduce) { .meter > i { transition: none; } }
-.za { --zc: var(--zone-a); } .zb { --zc: var(--zone-b); } .zc { --zc: var(--zone-c); }
+/* 價格表 */
+details summary { cursor: pointer; font-weight: 700; }
+.tablebox { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: .9rem; }
+th, td { text-align: left; padding: 7px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-size: .78rem; color: var(--muted); font-weight: 500; }
+td.r, th.r { text-align: right; white-space: nowrap; }
+.show26 { display: flex; gap: 6px; align-items: center; margin-block: 10px 4px; color: var(--muted); }
+.hide26 .col26 { display: none; }
+tr.group td { font-family: var(--display); font-weight: 700; color: var(--cc); border-bottom: 0; padding-top: 14px; }
 
-/* 房型表 */
-.tablebox { overflow-x: auto; background: var(--surface); border-radius: 14px; }
-table { border-collapse: collapse; width: 100%; }
-th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
-th { font-size: .8rem; color: var(--muted); font-weight: 500; letter-spacing: .04em; }
-tr:last-child td { border-bottom: 0; }
-td.r, th.r { text-align: right; }
-.zonecell { font-family: var(--display); font-weight: 700; color: var(--zc); }
-.sold { color: var(--muted); }
-
-/* 表單 */
-form { background: var(--surface); border-radius: 16px; padding: 20px; display: grid; gap: 22px; }
-fieldset { border: 0; margin: 0; padding: 0; display: grid; gap: 12px; min-width: 0; }
-legend { font-family: var(--display); font-weight: 700; font-size: 1.05rem; padding: 0; margin-bottom: 4px; display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
-legend .step { color: var(--accent); }
-label { display: grid; gap: 4px; font-size: .9rem; }
+/* 欄位 */
+label.field { display: grid; gap: 4px; font-size: .92rem; }
+.req { color: var(--accent); }
 .row { display: flex; flex-wrap: wrap; gap: 12px; }
 .row > * { flex: 1 1 140px; min-width: 0; }
-input[type=text], input[type=number], select, textarea {
-  width: 100%; border: 1px solid var(--line); border-radius: 10px; padding: 9px 11px; background: var(--bg);
+input[type=text], input[type=number], textarea {
+  width: 100%; font: inherit; color: inherit; border: 1px solid var(--line); border-radius: 10px; padding: 9px 11px; background: var(--bg);
 }
-textarea { min-height: 70px; resize: vertical; }
-.check { display: flex; gap: 8px; align-items: flex-start; font-size: .9rem; }
-.check input { margin-top: 5px; }
-.extra { border: 1px solid var(--line); border-left: 4px solid var(--zc); border-radius: 12px; padding: 12px 14px; display: grid; gap: 10px; }
-.extra-head { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
-.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
-.seg label { display: block; }
-.seg input { position: absolute; opacity: 0; pointer-events: none; }
-.seg span { display: block; padding: 7px 14px; font-size: .9rem; cursor: pointer; }
-.seg input:checked + span { background: var(--ink); color: var(--bg); }
-.seg input:focus-visible + span { outline: 3px solid var(--zone-b); outline-offset: -3px; }
-.seg input:disabled + span { opacity: .4; cursor: default; }
-.formfoot { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
-.msg { font-size: .9rem; }
-.msg.err { color: var(--accent); }
-.msg.good { color: var(--ok); }
-.mine { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: .9rem; }
-.mine .btn[aria-pressed=true] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+textarea { min-height: 80px; resize: vertical; }
 
-/* 大家的登記 */
+/* 房間列：名稱在上，選項在下 */
+.rooms { display: grid; gap: 0; }
+.room { display: grid; gap: 8px; padding-block: 12px; border-bottom: 1px solid var(--line); }
+.room:last-child { border-bottom: 0; padding-bottom: 0; }
+.room:first-child { padding-top: 0; }
+.room-name { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 2px 10px; }
+.room-name b { font-weight: 700; }
+.seg { display: flex; flex-wrap: wrap; gap: 6px; }
+.seg label { position: relative; }
+.seg input { position: absolute; opacity: 0; pointer-events: none; }
+.seg span { display: block; padding: 6px 13px; border: 1px solid var(--line); border-radius: 999px; font-size: .9rem; cursor: pointer; background: var(--bg); }
+.seg input:checked + span { background: var(--cc); border-color: var(--cc); color: var(--surface); font-weight: 700; }
+.seg input:focus-visible + span { outline: 3px solid var(--c3); outline-offset: 2px; }
+.seg input:disabled + span { opacity: .35; cursor: not-allowed; }
+.checks { display: flex; flex-wrap: wrap; gap: 6px 16px; }
+.checks label { display: flex; gap: 6px; align-items: center; font-size: .92rem; }
+
+.foot { display: grid; gap: 10px; }
+.btn { font: inherit; background: var(--accent); color: var(--accent-ink); border: 0; border-radius: 12px; padding: 13px 22px; font-weight: 700; font-size: 1rem; cursor: pointer; justify-self: start; }
+.btn:disabled { opacity: .55; cursor: wait; }
+.msg { font-size: .92rem; }
+.msg.err { color: var(--accent); }
+.done { background: var(--ok-bg); color: var(--ink); border-radius: 16px; padding: 18px; display: grid; gap: 10px; }
+.done h2 { color: var(--ok); }
+.done ul { margin: 0; padding-left: 1.2em; }
+.linkbtn { font: inherit; background: none; border: 0; padding: 0; color: var(--c3); text-decoration: underline; cursor: pointer; justify-self: start; }
+
+/* 分頁 */
+.tabs { display: flex; gap: 6px; background: var(--surface); padding: 5px; border-radius: 14px; position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; box-shadow: 0 1px 0 var(--line); }
+.tabs a { flex: 1; text-align: center; padding: 9px 10px; border-radius: 10px; color: var(--ink); text-decoration: none; font-weight: 700; font-size: .95rem; }
+.tabs a[aria-current="page"] { background: var(--ink); color: var(--bg); }
+.tabs .badge { display: inline-block; min-width: 1.4em; padding: 0 6px; margin-left: 4px; border-radius: 99px; background: var(--wait-bg); color: var(--wait); font-size: .78rem; }
+.view { display: grid; gap: 22px; }
+.syncline { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; font-size: .85rem; color: var(--muted); }
+.ghost { font: inherit; border: 1px solid var(--line); background: var(--surface); color: var(--ink); border-radius: 999px; padding: 4px 12px; cursor: pointer; font-size: .85rem; }
+
+/* 狀態標籤 */
+.pill { display: inline-block; border-radius: 8px; padding: 1px 8px; font-size: .8rem; white-space: nowrap; background: var(--pb); color: var(--pf); }
+.s-clear { --pb: var(--ok-bg); --pf: var(--ok); }
+.s-conflict { --pb: var(--wait-bg); --pf: var(--wait); }
+.s-pending_open, .s-pending_group { --pb: var(--pend-bg); --pf: var(--pend); }
+.s-backup, .s-left { --pb: var(--off-bg); --pf: var(--muted); }
+.count { font-size: .8rem; }
+
+/* 統計 */
+.tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+@media (max-width: 560px) { .tiles { grid-template-columns: 1fr; } }
+.tile { background: var(--surface); border-radius: 14px; padding: 14px 16px; display: grid; gap: 6px; border-top: 4px solid var(--cc); }
+.tile .big { font-family: var(--display); font-size: 1.6rem; line-height: 1.1; }
+.meter { height: 8px; background: var(--off-bg); border-radius: 99px; overflow: hidden; }
+.meter > i { display: block; height: 100%; background: var(--cc); border-radius: 99px; }
+.stattable td .fam { font-size: .82rem; color: var(--muted); }
+.conf { background: var(--surface); border-radius: 14px; padding: 14px 16px; display: grid; gap: 10px; border-left: 4px solid var(--wait); }
+.conf ul { margin: 0; padding-left: 1.2em; display: grid; gap: 4px; }
 .list { display: grid; gap: 10px; }
 .entry { background: var(--surface); border-radius: 14px; padding: 14px 16px; display: grid; gap: 8px; }
 .entry.me { box-shadow: inset 0 0 0 2px var(--accent); }
-.entry-head { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.entry-head, .entry-foot { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; align-items: baseline; }
 .entry-name { font-weight: 700; font-size: 1.05rem; }
-.seqno { font-family: var(--display); color: var(--muted); margin-right: 6px; }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; }
-.chip { display: inline-flex; gap: 6px; align-items: center; border-radius: 8px; padding: 3px 9px; font-size: .85rem; background: var(--bg-c); color: var(--fg-c); }
-.chip b { font-weight: 700; }
-.s-ok, .s-clear { --bg-c: var(--ok-bg); --fg-c: var(--ok); }
-.s-conflict { --bg-c: var(--wait-bg); --fg-c: var(--wait); }
-.s-backup { --bg-c: var(--off-bg); --fg-c: var(--off); }
-.s-wait { --bg-c: var(--wait-bg); --fg-c: var(--wait); }
-.s-pending_open, .s-pending_group { --bg-c: var(--pend-bg); --fg-c: var(--pend); }
-.s-not_needed, .s-covered { --bg-c: var(--off-bg); --fg-c: var(--off); }
-.entry-foot { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; font-size: .9rem; }
+.chip { display: inline-flex; gap: 6px; align-items: center; border-radius: 8px; padding: 3px 9px; font-size: .85rem; background: var(--pb); color: var(--pf); }
 .actions { display: flex; gap: 14px; }
-.legend { display: flex; flex-wrap: wrap; gap: 6px; }
+.danger { color: var(--accent); }
 .empty { background: var(--surface); border-radius: 14px; padding: 20px; color: var(--muted); }
-.pill { display: inline-block; border-radius: 8px; padding: 2px 8px; font-size: .82rem; white-space: nowrap; background: var(--bg-c); color: var(--fg-c); }
-.conf { background: var(--surface); border-radius: 14px; padding: 14px 16px; display: grid; gap: 10px; border-left: 4px solid var(--wait); }
-.conf ul { margin: 0; padding-left: 1.2em; display: grid; gap: 4px; }
-.alts { display: flex; flex-wrap: wrap; gap: 6px 14px; }
-.qtyrow { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
-.qtyrow select { width: auto; min-width: 110px; }
-.stats { font-size: .9rem; color: var(--muted); }
+.mine { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: .9rem; }
+.mine .ghost[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.msg.good { color: var(--ok); }
 </style>
 </head>
 <body>
 <div class="wrap">
   <header>
     <p class="eyebrow">2027 包棟住宿</p>
-    <h1>房間登記</h1>
-    <p class="muted">這是統計用的登記，不是搶房。每個家庭填一次想住的房型和間數；同一房型登記超過間數時會標成「需協調」，大家討論好之後再回來修改。B 區在 A 區住滿後開放；C 區包區在 A 區住滿、且登記滿 3 間時成團。</p>
+    <h1>包棟房間登記</h1>
+    <p>這是<b>統計用</b>的登記，不是搶房，沒有先到先得。請每個家庭填一次想住的房型和間數；同一房型登記超過間數時，大家再一起協調，協調後回來修改即可。</p>
+    <ul class="rules small">
+      <li><b>分類 1 包棟必選區</b>：每個家庭至少選一間</li>
+      <li><b>分類 2 四間包區</b>：分類 1 住滿，且包區登記滿 3 間才成立</li>
+      <li><b>分類 3 包棟加選區</b>：分類 1 住滿之後才開放</li>
+    </ul>
     <div class="syncline">
       <span id="sync">讀取中…</span>
-      <button class="btn" type="button" id="refresh">重新整理</button>
+      <button class="ghost" type="button" id="refresh">重新整理</button>
       <span id="adminTag" hidden>管理員模式</span>
     </div>
+    <p class="preview" id="previewNote" hidden>預覽模式：還沒連接 Google 試算表。可以試填，但不會存檔，統計也是空的。請把 Apps Script 網址貼到 config.js。</p>
+    <p class="preview" id="loadError" hidden></p>
   </header>
 
-  <div class="notice" id="setupNotice" hidden>
-    <h3>尚未連接 Google 試算表</h3>
-    <p class="small">請把 Apps Script 的網頁應用程式網址貼到 <code>config.js</code> 的 <code>apiUrl</code>。</p>
-  </div>
-  <div class="notice" id="loadError" hidden><p id="loadErrorText"></p></div>
+  <nav class="tabs" aria-label="頁面">
+    <a href="#form" id="tab-form" aria-current="page">填寫登記</a>
+    <a href="#stats" id="tab-stats">目前統計<span class="badge" id="confBadge" hidden></span></a>
+  </nav>
 
-  <section style="display:grid;gap:10px" aria-label="目前統計">
-    <p class="stats num" id="stats"></p>
-    <div class="zones" id="zones"></div>
-  </section>
+  <!-- ───── 填寫 ───── -->
+  <div class="view" id="view-form">
+    <section class="card" aria-labelledby="h-price">
+      <details id="priceBox">
+        <summary id="h-price">房型與價格表（2027 價格）</summary>
+        <label class="show26 small" for="show26"><input type="checkbox" id="show26">顯示 2026 價格</label>
+        <div class="tablebox">
+          <table id="priceTable" class="hide26">
+            <thead><tr><th>房型</th><th class="r">間數</th><th class="r col26">2026 價</th><th class="r">2027 價</th></tr></thead>
+            <tbody id="priceRows"></tbody>
+          </table>
+        </div>
+      </details>
+    </section>
 
-  <section aria-labelledby="h-rooms" style="display:grid;gap:12px">
-    <h2 id="h-rooms">房型統計</h2>
-    <div class="tablebox">
-      <table>
-        <thead><tr><th>區</th><th>房型</th><th class="r">登記／間數</th><th>狀態</th></tr></thead>
-        <tbody id="roomRows"><tr><td colspan="4" class="muted">讀取中…</td></tr></tbody>
-      </table>
-    </div>
-    <div id="conflicts"></div>
-  </section>
-
-  <section aria-labelledby="h-form" style="display:grid;gap:12px">
-    <h2 id="h-form">填寫登記</h2>
     <div class="mine" id="mine" hidden></div>
-    <form id="form" novalidate>
-      <fieldset>
-        <legend><span class="step">1</span>基本資料</legend>
-        <label for="f-name">姓名（家庭代表）
+
+    <form id="form" novalidate style="display:grid;gap:22px">
+      <section class="card" aria-labelledby="h-basic">
+        <div class="card-head"><h2 id="h-basic">基本資料</h2></div>
+        <label class="field" for="f-name">姓名（家庭代表）<span class="req">*</span>
           <input type="text" id="f-name" maxlength="30" autocomplete="name" placeholder="例如：王小明">
         </label>
         <div class="row">
-          <label for="f-adults">大人
+          <label class="field" for="f-adults">大人人數 <span class="req">*</span>
             <input type="number" id="f-adults" min="0" max="20" value="2" inputmode="numeric">
           </label>
-          <label for="f-kids">小孩
+          <label class="field" for="f-kids">小孩人數 <span class="req">*</span>
             <input type="number" id="f-kids" min="0" max="20" value="1" inputmode="numeric">
           </label>
         </div>
-      </fieldset>
+      </section>
 
-      <fieldset>
-        <legend><span class="step">2</span>A 區（必選，至少一間）<span class="small muted">括號裡是目前登記數／間數</span></legend>
-        <div id="aRooms" style="display:grid;gap:10px"></div>
-        <div style="display:grid;gap:6px">
-          <span class="small">如果要協調，你也可以接受哪些 A 區房型？（可複選）</span>
-          <div class="alts" id="alts"></div>
+      <section class="card k1" aria-labelledby="h-c1">
+        <div class="card-head">
+          <span class="tag">分類 1・必選</span>
+          <h2 id="h-c1">包棟必選區</h2>
+          <p class="small muted">每個家庭至少選一間。只有 1 間的房型不能選 2 間。房型右邊是目前登記數／間數。</p>
         </div>
-      </fieldset>
+        <div class="rooms" id="rooms1"></div>
+        <div style="display:grid;gap:6px">
+          <span class="small"><b>如果要協調，你也可以接受哪些房型？</b>（可複選，可不填）</span>
+          <div class="checks" id="alts"></div>
+        </div>
+      </section>
 
-      <fieldset>
-        <legend><span class="step">3</span>B／C 區（可不選）</legend>
-        <p class="small muted"><b>想住</b>：A 區之外再多住一間。<b>候補</b>：只有 A 區協調不到時才需要。</p>
-        <div id="extras" style="display:grid;gap:10px"></div>
-      </fieldset>
+      <section class="card k2" aria-labelledby="h-c2">
+        <div class="card-head">
+          <span class="tag">分類 2・可不選</span>
+          <h2 id="h-c2">四間包區</h2>
+          <p class="small muted">分類 1 的房間住滿，且包區登記滿 3 間，才達包區標準。每間 6,800 元（原價 7,125，老闆降價）。<br>想住：分類 1 之外再多住一間。候補：分類 1 協調不到房間時才需要。</p>
+        </div>
+        <div class="rooms" id="rooms2"></div>
+      </section>
 
-      <fieldset>
-        <legend><span class="step">4</span>備註（可不填）</legend>
-        <label for="f-note" class="small muted">例如想要的主題（火車、兔窩、城堡⋯）、想和誰住隔壁
+      <section class="card k3" aria-labelledby="h-c3">
+        <div class="card-head">
+          <span class="tag">分類 3・可不選</span>
+          <h2 id="h-c3">包棟加選區</h2>
+          <p class="small muted">分類 1 的房間住滿之後才會開放。每間 3,600 元（3,800 減老客戶折扣 200）。<br>想住：分類 1 之外再多住。候補：分類 1 協調不到房間時才需要。</p>
+        </div>
+        <div class="rooms" id="rooms3"></div>
+      </section>
+
+      <section class="card" aria-labelledby="h-note">
+        <div class="card-head"><h2 id="h-note">備註</h2></div>
+        <label class="field small muted" for="f-note">特殊需求
           <textarea id="f-note" maxlength="200"></textarea>
         </label>
-      </fieldset>
+      </section>
 
-      <div class="formfoot">
-        <button class="btn-primary" type="submit" id="submit">送出登記</button>
-        <button class="btn-link" type="button" id="newEntry" hidden>改為新增另一個家庭</button>
+      <div class="foot">
+        <div class="row" style="align-items:center">
+          <button class="btn" type="submit" id="submit" style="flex:0 0 auto">送出登記</button>
+          <button class="linkbtn" type="button" id="newEntry" hidden style="flex:0 0 auto">改為新增另一個家庭</button>
+        </div>
         <span class="msg" id="msg" role="status"></span>
       </div>
     </form>
-  </section>
+  </div>
 
-  <section aria-labelledby="h-list" style="display:grid;gap:12px">
-    <h2 id="h-list">大家的登記</h2>
-    <div class="legend small">
-      <span class="chip s-clear">沒有衝突</span><span class="chip s-conflict">需協調</span>
-      <span class="chip s-pending_open">待開放／待成團</span><span class="chip s-backup">候補</span>
-    </div>
-    <div class="list" id="list"><div class="empty">讀取中…</div></div>
-  </section>
+  <!-- ───── 統計 ───── -->
+  <div class="view" id="view-stats" hidden>
+    <p class="num" id="stats"></p>
+    <div class="tiles" id="tiles"></div>
+
+    <section class="card" aria-labelledby="h-roomstat">
+      <h2 id="h-roomstat">各房型登記</h2>
+      <div class="tablebox">
+        <table class="stattable">
+          <thead><tr><th>房型</th><th class="r">登記／間數</th><th>狀態</th></tr></thead>
+          <tbody id="statRows"><tr><td colspan="3" class="muted">讀取中…</td></tr></tbody>
+        </table>
+      </div>
+    </section>
+
+    <div id="conflicts"></div>
+
+    <section style="display:grid;gap:12px" aria-labelledby="h-list">
+      <h2 id="h-list">大家的登記</h2>
+      <div class="chips small">
+        <span class="chip s-clear">沒有衝突</span><span class="chip s-conflict">需協調</span>
+        <span class="chip s-pending_open">待開放／待成團</span><span class="chip s-backup">候補</span>
+      </div>
+      <div class="list" id="list"><div class="empty">讀取中…</div></div>
+    </section>
+  </div>
 </div>
 
 <script src="config.js"></script>
 <script>
 (function () {
+  // 房型預設資料（連上試算表後以 Apps Script 裡的 ROOMS 為準）
+  var DEFAULT_ROOMS = [
+    { id: 'jeep', zone: '1', name: '吉普三人房', beds: '1大床+1小床', qty: 2, p26: '4,900', price: 4700, why: '老客戶折扣 200' },
+    { id: 'zimu', zone: '1', name: '子母四人房', beds: '1大床+2小床', qty: 2, p26: '5,800', price: 5600, why: '老客戶折扣 200' },
+    { id: 'train', zone: '1', name: '火車四人秋千房', beds: '1大床+2小床', qty: 1, p26: '6,800', price: 6600, why: '老客戶折扣 200' },
+    { id: 'bunny', zone: '1', name: '兔窩四人秋千房', beds: '1大床+2小床', qty: 1, p26: '6,800', price: 6600, why: '老客戶折扣 200' },
+    { id: 'castle', zone: '1', name: '城堡四人秋千房', beds: '1大床+2小床', qty: 1, p26: '6,800', price: 6600, why: '老客戶折扣 200' },
+    { id: 'fire', zone: '1', name: '消防英雄滑梯房', beds: '2大床', qty: 2, p26: '6,800', price: 6600, why: '老客戶折扣 200' },
+    { id: 'supercar', zone: '1', name: '超跑星空滑梯房', beds: '2大床', qty: 1, p26: '6,800', price: 6600, why: '老客戶折扣 200' },
+    { id: 'bus', zone: '1', name: '快樂巴士滑梯房', beds: '2大床', qty: 2, p26: '6,800', price: 6800, why: '原價 7,700，老闆降價' },
+    { id: 'rabbit', zone: '2', name: '包區兔兔房', beds: '2大床', qty: 1, p26: '6,800', price: 6800, why: '原價 7,125，老闆降價' },
+    { id: 'sail', zone: '2', name: '包區航海房', beds: '2大床', qty: 1, p26: '6,800', price: 6800, why: '原價 7,125，老闆降價' },
+    { id: 'lego', zone: '2', name: '包區樂高房', beds: '2大床', qty: 1, p26: '6,800', price: 6800, why: '原價 7,125，老闆降價' },
+    { id: 'dino', zone: '2', name: '包區恐龍房', beds: '2大床', qty: 1, p26: '6,800', price: 6800, why: '原價 7,125，老闆降價' },
+    { id: 'water', zone: '3', name: '水上漂雙人房', beds: '雙人床+120cm 小床', qty: 2, p26: '4,800', price: 3600, why: '3,800 減老客戶折扣 200' },
+    { id: 'diudiu', zone: '3', name: '丟丟噹雙人房', beds: '雙人床', qty: 2, p26: '未知', price: 3600, why: '3,800 減老客戶折扣 200' }
+  ];
+  var ZONE = { '1': { k: 'k1', label: '分類 1 包棟必選區' }, '2': { k: 'k2', label: '分類 2 四間包區' }, '3': { k: 'k3', label: '分類 3 包棟加選區' } };
+  var STATUS = { clear: '沒有衝突', conflict: '需協調', pending_open: '待分類 1 住滿', pending_group: '待成團', backup: '候補' };
+  // 每個分類的選項：值為「模式:間數」
+  var OPTS = {
+    '1': [['0', '不需要'], ['want:1', '1 間'], ['want:2', '2 間']],
+    '2': [['0', '不需要'], ['want:1', '想住'], ['backup:1', '候補']],
+    '3': [['0', '不需要'], ['want:1', '想住 1 間'], ['want:2', '想住 2 間'], ['backup:1', '候補 1 間'], ['backup:2', '候補 2 間']]
+  };
+
   var API = (window.ROOM_SIGNUP_CONFIG || {}).apiUrl || '';
   var STORE_KEY = 'roomSignup2027.mine';
-  var STATUS = { clear: '沒有衝突', conflict: '需協調', pending_open: '待 A 區滿', pending_group: '待成團', backup: '候補' };
+  var rooms = DEFAULT_ROOMS;
   var state = null;
   var editing = null;
   var adminKey = new URLSearchParams(location.search).get('admin') || '';
   var isAdmin = false;
   var $ = function (id) { return document.getElementById(id); };
-  var fmt = function (n) { return Number(n).toLocaleString('zh-TW'); };
   var each = function (sel, fn) { Array.prototype.forEach.call(document.querySelectorAll(sel), fn); };
-
+  var fmt = function (n) { return Number(n).toLocaleString('zh-TW'); };
   function esc(s) { var d = document.createElement('div'); d.textContent = s == null ? '' : String(s); return d.innerHTML; }
+  function roomById(id) { return rooms.filter(function (r) { return r.id === id; })[0]; }
+  function inZone(z) { return rooms.filter(function (r) { return r.zone === z; }); }
   function loadMine() { try { return JSON.parse(localStorage.getItem(STORE_KEY) || '[]'); } catch (e) { return []; } }
   function saveMine(list) { try { localStorage.setItem(STORE_KEY, JSON.stringify(list)); } catch (e) {} }
 
@@ -279,185 +349,111 @@ textarea { min-height: 70px; resize: vertical; }
       return r.json();
     });
   }
-  function roomById(id) { return state.rooms.filter(function (r) { return r.id === id; })[0]; }
-  function zoneRooms(z) { return state.rooms.filter(function (r) { return z === 'A' ? r.zone === 'A' : r.zone !== 'A'; }); }
-  function roomState(r) {
-    var st = state.result.rooms[r.id];
-    if (st.over > 0) return '<span class="pill s-conflict">超出 ' + st.over + ' 間</span>';
-    if (st.left > 0) return '<span class="pill s-backup">剩 ' + st.left + ' 間</span>';
-    return '<span class="pill s-clear">剛好</span>';
+
+  // ───── 分頁 ─────
+  function showView() {
+    var stats = location.hash === '#stats';
+    $('view-form').hidden = stats; $('view-stats').hidden = !stats;
+    $('tab-form').setAttribute('aria-current', stats ? 'false' : 'page');
+    $('tab-stats').setAttribute('aria-current', stats ? 'page' : 'false');
   }
+  window.addEventListener('hashchange', showView);
 
-  // ───── 統計畫面 ─────
-  function renderTop() {
-    var s = state.result.summary;
-    $('stats').textContent = s.families + ' 個家庭・大人 ' + s.adults + ' 人・小孩 ' + s.kids + ' 人' + (s.conflicts ? '・' + s.conflicts + ' 個房型需協調' : '');
-    var bDemand = 0, bTotal = 0;
-    state.rooms.forEach(function (r) { if (r.zone === 'B') { bDemand += state.result.rooms[r.id].demand; bTotal += r.qty; } });
-    $('zones').innerHTML =
-      '<div class="zone za"><span class="tag">A 區必選</span><span class="big num">' + s.aFilled + ' / ' + s.aTotal + '</span>' +
-      '<div class="meter"><i style="width:' + (s.aFilled / s.aTotal * 100) + '%"></i></div>' +
-      '<span class="small muted">' + (s.aFull ? '已住滿，B 區可開放' : '還有 ' + (s.aTotal - s.aFilled) + ' 間沒人登記') + '</span></div>' +
-      '<div class="zone zb"><span class="tag">B 區加選</span><span class="big num">' + bDemand + ' / ' + bTotal + '</span>' +
-      '<div class="meter"><i style="width:' + Math.min(100, bDemand / bTotal * 100) + '%"></i></div>' +
-      '<span class="small muted">' + (s.bOpen ? '開放條件已達成' : 'A 區住滿後開放，可先登記') + '</span></div>' +
-      '<div class="zone zc"><span class="tag">C 區包區</span><span class="big num">' + s.cDemand + ' / ' + s.cMin + ' 間</span>' +
-      '<div class="meter"><i style="width:' + Math.min(100, s.cDemand / s.cMin * 100) + '%"></i></div>' +
-      '<span class="small muted">' + (s.cFormed ? '已成團' : (s.cDemand >= s.cMin ? '人數夠了，等 A 區住滿' : '登記滿 ' + s.cMin + ' 間且 A 區住滿才成團')) +
-      (s.cBackup ? '・另有 ' + s.cBackup + ' 間候補' : '') + '</span></div>';
-  }
-
-  function renderRooms() {
-    var zc = { A: 'za', B: 'zb', C: 'zc' };
-    $('roomRows').innerHTML = state.rooms.map(function (r) {
-      var st = state.result.rooms[r.id];
-      return '<tr><td class="zonecell ' + zc[r.zone] + '">' + r.zone + '</td>' +
-        '<td><div><b>' + esc(r.name) + '</b> <span class="num">' + fmt(r.price) + '</span></div><div class="small muted">' + esc(r.beds) + '・' + esc(r.note) + '</div></td>' +
-        '<td class="r num">' + st.demand + ' / ' + r.qty + (st.backup ? '<div class="small muted">候補 ' + st.backup + '</div>' : '') + '</td>' +
-        '<td>' + roomState(r) + '</td></tr>';
-    }).join('');
-
-    var over = state.rooms.filter(function (r) { return state.result.rooms[r.id].over > 0; });
-    if (!over.length) {
-      $('conflicts').innerHTML = state.result.regs.length ? '<p class="small muted">目前沒有房型需要協調。</p>' : '';
-      return;
-    }
-    $('conflicts').innerHTML = '<div class="conf"><h3>需要協調</h3>' + over.map(function (r) {
-      var st = state.result.rooms[r.id];
-      var fams = st.families.filter(function (f) { return f.mode !== 'backup'; }).map(function (f) {
-        var alts = f.alts.filter(function (a) { return a !== r.id; }).map(function (a) { var x = roomById(a); return x ? x.name : a; });
-        return '<li>' + esc(f.name) + (f.qty > 1 ? ' ×' + f.qty : '') +
-          '<span class="small muted">' + (alts.length ? '・也可以：' + esc(alts.join('、')) : '・沒有填可接受的其他房型') + '</span></li>';
+  // ───── 價格表 ─────
+  function renderPrices() {
+    $('priceRows').innerHTML = ['1', '2', '3'].map(function (z) {
+      var list = inZone(z), total = list.reduce(function (t, r) { return t + r.qty; }, 0);
+      return '<tr class="group ' + ZONE[z].k + '"><td colspan="4">' + ZONE[z].label + '（共 ' + total + ' 間）</td></tr>' + list.map(function (r) {
+        return '<tr><td>' + esc(r.name) + '<div class="small muted">' + esc(r.beds) + '・' + esc(r.why) + '</div></td>' +
+          '<td class="r num">' + r.qty + '</td><td class="r num col26">' + esc(r.p26) + '</td><td class="r num"><b>' + fmt(r.price) + '</b></td></tr>';
       }).join('');
-      return '<div><b>' + esc(r.name) + '</b> <span class="small muted num">' + r.qty + ' 間，登記 ' + st.demand + ' 間，超出 ' + st.over + ' 間</span><ul>' + fams + '</ul></div>';
-    }).join('') + '</div>';
+    }).join('');
   }
+  $('show26').addEventListener('change', function () { $('priceTable').classList.toggle('hide26', !this.checked); });
 
-  function renderList() {
-    var regs = state.result.regs;
-    var mineIds = loadMine().map(function (m) { return m.id; });
-    if (!regs.length) { $('list').innerHTML = '<div class="empty">還沒有人登記。上面的表單送出後，你的登記會出現在這裡。</div>'; return; }
-    $('list').innerHTML = regs.map(function (o) {
-      var me = mineIds.indexOf(o.id) >= 0;
-      var chips = o.items.map(function (it) {
-        var r = roomById(it.type);
-        return '<span class="chip s-' + it.status + '"><b>' + it.zone + '</b>' + esc(r.name) + (it.qty > 1 ? ' ×' + it.qty : '') + '・' + STATUS[it.status] + '</span>';
+  // ───── 填寫表單 ─────
+  function renderForm() {
+    ['1', '2', '3'].forEach(function (z) {
+      $('rooms' + z).innerHTML = inZone(z).map(function (r) {
+        var opts = OPTS[z].map(function (o, j) {
+          var id = 'o-' + r.id + '-' + j;
+          var need = +(o[0].split(':')[1] || 0);
+          var dis = need > r.qty ? ' disabled' : '';
+          return '<label for="' + id + '"><input type="radio" id="' + id + '" name="room-' + r.id + '" value="' + o[0] + '"' + (j === 0 ? ' checked' : '') + dis + '><span>' + esc(o[1]) + '</span></label>';
+        }).join('');
+        return '<div class="room"><div class="room-name"><span><b>' + esc(r.name) + '</b> <span class="small muted">' + esc(r.beds) + '・' + fmt(r.price) + ' 元</span></span>' +
+          '<span class="count num" data-count="' + r.id + '">共 ' + r.qty + ' 間</span></div>' +
+          '<div class="seg" role="radiogroup" aria-label="' + esc(r.name) + '">' + opts + '</div></div>';
       }).join('');
-      var alts = o.alts.map(function (a) { var x = roomById(a); return x ? x.name : a; });
-      var canEdit = me || isAdmin;
-      return '<article class="entry' + (me ? ' me' : '') + '">' +
-        '<div class="entry-head"><span class="entry-name"><span class="seqno num">#' + o.seq + '</span>' + esc(o.name) + (me ? ' <span class="small" style="color:var(--accent)">（你）</span>' : '') + '</span>' +
-        '<span class="small muted num">大人 ' + o.adults + '・小孩 ' + o.kids + '</span></div>' +
-        '<div class="chips">' + chips + '</div>' +
-        (alts.length ? '<p class="small muted">也可以接受：' + esc(alts.join('、')) + '</p>' : '') +
-        (o.note ? '<p class="small muted">' + esc(o.note) + '</p>' : '') +
-        '<div class="entry-foot"><span class="num">預估金額 <b>' + fmt(o.estimate) + '</b> 元<span class="small muted">（不含候補）</span></span>' +
-        (canEdit ? '<span class="actions"><button class="btn-link" type="button" data-edit="' + esc(o.id) + '">修改</button>' +
-          '<button class="btn-link btn-danger" type="button" data-del="' + esc(o.id) + '">刪除</button></span>' : '') +
-        '</div></article>';
+    });
+    $('alts').innerHTML = inZone('1').map(function (r) {
+      return '<label for="alt-' + r.id + '"><input type="checkbox" id="alt-' + r.id + '" value="' + r.id + '">' + esc(r.name) + '</label>';
     }).join('');
-  }
-
-  // ───── 表單 ─────
-  function qtyOptions(zeroLabel) {
-    var h = '';
-    for (var q = 0; q <= state.maxQty; q++) h += '<option value="' + q + '">' + (q ? q + ' 間' : zeroLabel) + '</option>';
-    return h;
-  }
-  function countText(r) { var st = state.result.rooms[r.id]; return '（' + st.demand + '／' + r.qty + '）'; }
-
-  function buildForm() {
-    $('aRooms').innerHTML = zoneRooms('A').map(function (r) {
-      return '<div class="extra za"><div class="qtyrow"><div><b>' + esc(r.name) + '</b> <span class="small muted">' + esc(r.beds) + '・' + fmt(r.price) + '</span>' +
-        '<div class="small muted"><span data-count="' + r.id + '">' + countText(r) + '</span>' + (r.themes ? '・主題：' + esc(r.themes) : '') + '</div></div>' +
-        '<label for="q-' + r.id + '" class="small">間數 <select id="q-' + r.id + '" data-room="' + r.id + '" class="aqty">' + qtyOptions('不選') + '</select></label></div></div>';
-    }).join('');
-    $('alts').innerHTML = zoneRooms('A').map(function (r) {
-      return '<label class="check" for="alt-' + r.id + '"><input type="checkbox" id="alt-' + r.id + '" value="' + r.id + '" class="alt"><span>' + esc(r.name) + '</span></label>';
-    }).join('');
-    var zc = { B: 'zb', C: 'zc' };
-    $('extras').innerHTML = zoneRooms('BC').map(function (r) {
-      var cond = r.zone === 'B' ? 'A 區住滿後開放' : 'A 區住滿且登記滿 ' + state.cMin + ' 間成團';
-      return '<div class="extra ' + zc[r.zone] + '">' +
-        '<div><b>' + r.zone + ' 區・' + esc(r.name) + '</b> <span class="small muted">' + esc(r.beds) + '・' + fmt(r.price) + '</span>' +
-        '<div class="small muted"><span data-count="' + r.id + '">' + countText(r) + '</span>' + cond + (r.themes ? '・主題：' + esc(r.themes) : '') + '</div></div>' +
-        '<div class="row">' +
-        '<label for="q-' + r.id + '">間數<select id="q-' + r.id + '" data-room="' + r.id + '" class="xqty">' + qtyOptions('不需要') + '</select></label>' +
-        '<div style="display:grid;gap:4px;font-size:.9rem"><span>用途</span><div class="seg" role="radiogroup" aria-label="' + esc(r.name) + ' 用途">' +
-        '<label for="m-want-' + r.id + '"><input type="radio" name="m-' + r.id + '" id="m-want-' + r.id + '" value="want" checked><span>想住</span></label>' +
-        '<label for="m-bk-' + r.id + '"><input type="radio" name="m-' + r.id + '" id="m-bk-' + r.id + '" value="backup"><span>候補</span></label>' +
-        '</div></div></div></div>';
-    }).join('');
-    each('.xqty', function (sel) { sel.addEventListener('change', syncModeDisabled); });
-    syncModeDisabled();
   }
 
   function refreshCounts() {
-    each('[data-count]', function (el) { el.textContent = countText(roomById(el.dataset.count)); });
-  }
-
-  function syncModeDisabled() {
-    each('.xqty', function (sel) {
-      var off = sel.value === '0';
-      each('input[name="m-' + sel.dataset.room + '"]', function (i) { i.disabled = off; });
+    if (!state) return;
+    each('[data-count]', function (el) {
+      var r = roomById(el.dataset.count), st = state.result.rooms[r.id];
+      if (!st) return;
+      var cls = st.over > 0 ? 's-conflict' : (st.left > 0 ? 's-left' : 's-clear');
+      el.innerHTML = '<span class="pill ' + cls + '">登記 ' + st.demand + ' / ' + r.qty + (st.over > 0 ? '・需協調' : '') + '</span>';
     });
   }
 
   function readForm() {
     var items = [];
-    each('.aqty', function (sel) { if (+sel.value) items.push({ type: sel.dataset.room, qty: +sel.value, mode: 'want' }); });
-    each('.xqty', function (sel) {
-      var m = document.querySelector('input[name="m-' + sel.dataset.room + '"]:checked');
-      if (+sel.value) items.push({ type: sel.dataset.room, qty: +sel.value, mode: m ? m.value : 'want' });
+    rooms.forEach(function (r) {
+      var c = document.querySelector('input[name="room-' + r.id + '"]:checked');
+      if (!c || c.value === '0') return;
+      var p = c.value.split(':');
+      items.push({ type: r.id, mode: p[0], qty: +p[1] });
     });
     var alts = [];
-    each('.alt', function (c) { if (c.checked) alts.push(c.value); });
-    return { name: $('f-name').value.trim(), adults: +$('f-adults').value, kids: +$('f-kids').value,
+    each('#alts input', function (c) { if (c.checked) alts.push(c.value); });
+    return { name: $('f-name').value.trim(), adults: $('f-adults').value.trim(), kids: $('f-kids').value.trim(),
              items: items, alts: alts, note: $('f-note').value.trim() };
   }
 
-  function fillForm(r) {
-    $('f-name').value = r.name || '';
-    $('f-adults').value = r.adults != null ? r.adults : 2;
-    $('f-kids').value = r.kids != null ? r.kids : 1;
-    $('f-note').value = r.note || '';
-    each('.aqty, .xqty', function (sel) {
-      var it = (r.items || []).filter(function (x) { return x.type === sel.dataset.room; })[0];
-      sel.value = String(it ? it.qty : 0);
-      if (sel.classList.contains('xqty')) {
-        var radio = $((it && it.mode === 'backup' ? 'm-bk-' : 'm-want-') + sel.dataset.room);
-        if (radio) radio.checked = true;
-      }
+  function fillForm(d) {
+    $('f-name').value = d.name || '';
+    $('f-adults').value = d.adults != null ? d.adults : 2;
+    $('f-kids').value = d.kids != null ? d.kids : 1;
+    $('f-note').value = d.note || '';
+    rooms.forEach(function (r) {
+      var it = (d.items || []).filter(function (x) { return x.type === r.id; })[0];
+      var v = it ? it.mode + ':' + it.qty : '0';
+      var input = document.querySelector('input[name="room-' + r.id + '"][value="' + v + '"]') ||
+                  document.querySelector('input[name="room-' + r.id + '"][value="0"]');
+      if (input) input.checked = true;
     });
-    each('.alt', function (c) { c.checked = (r.alts || []).indexOf(c.value) >= 0; });
-    syncModeDisabled();
+    each('#alts input', function (c) { c.checked = (d.alts || []).indexOf(c.value) >= 0; });
   }
 
   function regInput(id) {
-    var o = state.result.regs.filter(function (x) { return x.id === id; })[0];
+    var o = state && state.result.regs.filter(function (x) { return x.id === id; })[0];
     return o ? { name: o.name, adults: o.adults, kids: o.kids, note: o.note, items: o.input.items, alts: o.input.alts } : null;
   }
 
-  function resetForm() { editing = null; fillForm({}); updateFormMode(); }
-
   function updateFormMode() {
-    $('h-form').textContent = editing ? '修改登記' : '填寫登記';
     $('submit').textContent = editing ? '儲存修改' : '送出登記';
     $('newEntry').hidden = !editing;
     renderMine();
   }
 
   function startEdit(id, editKey, quiet) {
-    var data = regInput(id);
-    if (!data) return;
+    var d = regInput(id);
+    if (!d) return;
     editing = { id: id, editKey: editKey || '' };
-    fillForm(data);
-    updateFormMode();
+    fillForm(d); updateFormMode();
     if (!quiet) {
-      $('msg').textContent = ''; $('msg').className = 'msg';
-      $('h-form').scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+      $('msg').textContent = '正在修改「' + d.name + '」的登記。'; $('msg').className = 'msg';
+      if (location.hash !== '#form') location.hash = '#form';
+      $('h-basic').scrollIntoView({ block: 'start' });
     }
   }
+
+  function resetForm() { editing = null; fillForm({}); updateFormMode(); }
 
   function renderMine() {
     var mine = loadMine();
@@ -465,45 +461,113 @@ textarea { min-height: 70px; resize: vertical; }
       var ids = state.result.regs.map(function (o) { return o.id; });
       mine = mine.filter(function (m) { return ids.indexOf(m.id) >= 0; });
     }
-    if (!mine.length) { $('mine').hidden = true; return; }
-    $('mine').hidden = false;
+    $('mine').hidden = !mine.length;
     $('mine').innerHTML = '<span class="muted">這台裝置登記過：</span>' + mine.map(function (m) {
-      return '<button class="btn" type="button" data-edit="' + esc(m.id) + '" aria-pressed="' + !!(editing && editing.id === m.id) + '">' + esc(m.name) + '</button>';
+      return '<button class="ghost" type="button" data-edit="' + esc(m.id) + '" aria-pressed="' + !!(editing && editing.id === m.id) + '">' + esc(m.name) + '</button>';
     }).join('');
   }
 
+  // ───── 統計 ─────
+  function renderStats() {
+    var res = state.result, s = res.summary;
+    $('stats').textContent = s.families + ' 個家庭・大人 ' + s.adults + ' 人・小孩 ' + s.kids + ' 人' + (s.conflicts ? '・' + s.conflicts + ' 個房型需協調' : '・目前沒有房型需要協調');
+    $('confBadge').hidden = !s.conflicts; $('confBadge').textContent = s.conflicts;
+
+    var z3 = inZone('3'), d3 = 0, t3 = 0;
+    z3.forEach(function (r) { d3 += res.rooms[r.id].demand; t3 += r.qty; });
+    $('tiles').innerHTML =
+      '<div class="tile k1"><span class="tag">分類 1 包棟必選區</span><span class="big num">' + s.aFilled + ' / ' + s.aTotal + '</span>' +
+      '<div class="meter"><i style="width:' + (s.aFilled / s.aTotal * 100) + '%"></i></div>' +
+      '<span class="small muted">' + (s.aFull ? '已住滿，分類 3 可開放' : '還有 ' + (s.aTotal - s.aFilled) + ' 間沒人登記') + '</span></div>' +
+      '<div class="tile k2"><span class="tag">分類 2 四間包區</span><span class="big num">' + s.cDemand + ' / ' + s.cMin + ' 間</span>' +
+      '<div class="meter"><i style="width:' + Math.min(100, s.cDemand / s.cMin * 100) + '%"></i></div>' +
+      '<span class="small muted">' + (s.cFormed ? '已成團' : (s.cDemand >= s.cMin ? '登記已滿 3 間，等分類 1 住滿' : '登記滿 3 間且分類 1 住滿才成立')) +
+      (s.cBackup ? '・另有候補 ' + s.cBackup + ' 間' : '') + '</span></div>' +
+      '<div class="tile k3"><span class="tag">分類 3 包棟加選區</span><span class="big num">' + d3 + ' / ' + t3 + '</span>' +
+      '<div class="meter"><i style="width:' + Math.min(100, d3 / t3 * 100) + '%"></i></div>' +
+      '<span class="small muted">' + (s.bOpen ? '開放條件已達成' : '分類 1 住滿後開放，可先登記') + '</span></div>';
+
+    $('statRows').innerHTML = ['1', '2', '3'].map(function (z) {
+      return '<tr class="group ' + ZONE[z].k + '"><td colspan="3">' + ZONE[z].label + '</td></tr>' + inZone(z).map(function (r) {
+        var st = res.rooms[r.id];
+        var fam = st.families.map(function (f) { return f.name + (f.qty > 1 ? '×' + f.qty : '') + (f.mode === 'backup' ? '（候補）' : ''); }).join('、');
+        var pill = st.over > 0 ? '<span class="pill s-conflict">超出 ' + st.over + ' 間</span>' :
+                   (st.left > 0 ? '<span class="pill s-left">剩 ' + st.left + ' 間</span>' : '<span class="pill s-clear">剛好</span>');
+        return '<tr><td>' + esc(r.name) + (fam ? '<div class="fam">' + esc(fam) + '</div>' : '') + '</td>' +
+          '<td class="r num">' + st.demand + ' / ' + r.qty + (st.backup ? '<div class="small muted">候補 ' + st.backup + '</div>' : '') + '</td>' +
+          '<td>' + pill + '</td></tr>';
+      }).join('');
+    }).join('');
+
+    var over = rooms.filter(function (r) { return res.rooms[r.id].over > 0; });
+    $('conflicts').innerHTML = !over.length ? '' : '<div class="conf"><h2>需要協調</h2>' + over.map(function (r) {
+      var st = res.rooms[r.id];
+      return '<div><b>' + esc(r.name) + '</b> <span class="small muted num">' + r.qty + ' 間，登記 ' + st.demand + ' 間</span><ul>' +
+        st.families.filter(function (f) { return f.mode !== 'backup'; }).map(function (f) {
+          var alts = (f.alts || []).filter(function (a) { return a !== r.id; }).map(function (a) { var x = roomById(a); return x ? x.name : a; });
+          return '<li>' + esc(f.name) + (f.qty > 1 ? ' ×' + f.qty : '') + ' <span class="small muted">' +
+            (alts.length ? '也可以：' + esc(alts.join('、')) : '沒有填可接受的其他房型') + '</span></li>';
+        }).join('') + '</ul></div>';
+    }).join('') + '</div>';
+
+    var mineIds = loadMine().map(function (m) { return m.id; });
+    $('list').innerHTML = !res.regs.length ? '<div class="empty">還沒有人登記。到「填寫登記」送出後，就會出現在這裡。</div>' :
+      res.regs.map(function (o) {
+        var me = mineIds.indexOf(o.id) >= 0;
+        var chips = o.items.map(function (it) {
+          var r = roomById(it.type);
+          return '<span class="chip s-' + it.status + '">' + esc(r ? r.name : it.type) + (it.qty > 1 ? ' ×' + it.qty : '') + '・' + STATUS[it.status] + '</span>';
+        }).join('');
+        var alts = (o.alts || []).map(function (a) { var x = roomById(a); return x ? x.name : a; });
+        return '<article class="entry' + (me ? ' me' : '') + '">' +
+          '<div class="entry-head"><span class="entry-name">' + esc(o.name) + (me ? ' <span class="small danger">（你）</span>' : '') + '</span>' +
+          '<span class="small muted num">大人 ' + o.adults + '・小孩 ' + o.kids + '</span></div>' +
+          '<div class="chips">' + chips + '</div>' +
+          (alts.length ? '<p class="small muted">也可以接受：' + esc(alts.join('、')) + '</p>' : '') +
+          (o.note ? '<p class="small muted">特殊需求：' + esc(o.note) + '</p>' : '') +
+          '<div class="entry-foot"><span class="num small">預估 <b>' + fmt(o.estimate) + '</b> 元（不含候補）</span>' +
+          ((me || isAdmin) ? '<span class="actions"><button class="linkbtn" type="button" data-edit="' + esc(o.id) + '">修改</button>' +
+            '<button class="linkbtn danger" type="button" data-del="' + esc(o.id) + '">刪除</button></span>' : '') +
+          '</div></article>';
+      }).join('');
+  }
+
   function renderAll() {
-    renderTop(); renderRooms(); renderList(); renderMine(); refreshCounts();
+    renderStats(); refreshCounts(); renderMine();
     var d = new Date(state.at);
-    $('sync').textContent = '更新時間 ' + d.getHours() + ':' + String(d.getMinutes()).padStart(2, '0') + ':' + String(d.getSeconds()).padStart(2, '0');
+    $('sync').textContent = '更新時間 ' + d.getHours() + ':' + String(d.getMinutes()).padStart(2, '0');
   }
 
   function applyState(s) {
     var first = !state;
     state = s;
+    if (s.rooms && JSON.stringify(s.rooms) !== JSON.stringify(rooms)) {
+      var keep = readForm();
+      rooms = s.rooms; renderPrices(); renderForm(); fillForm(keep);
+    }
     if (first) {
-      buildForm();
       var ids = s.result.regs.map(function (o) { return o.id; });
       var m = loadMine().filter(function (x) { return ids.indexOf(x.id) >= 0; })[0];
-      if (m) startEdit(m.id, m.editKey, true); else resetForm();
+      if (m) startEdit(m.id, m.editKey, true);
     }
     renderAll();
   }
 
   function load() {
     if (!API) {
-      $('setupNotice').hidden = false; $('sync').textContent = '未連接';
-      $('list').innerHTML = '<div class="empty">連接 Google 試算表後，登記會顯示在這裡。</div>';
-      return Promise.resolve();
+      $('previewNote').hidden = false; $('sync').textContent = '未連接';
+      $('list').innerHTML = '<div class="empty">連接 Google 試算表後，大家的登記會顯示在這裡。</div>';
+      $('statRows').innerHTML = '<tr><td colspan="3" class="muted">連接 Google 試算表後顯示統計。</td></tr>';
+      return;
     }
     $('sync').textContent = '更新中…';
-    return call('GET').then(function (s) {
+    call('GET').then(function (s) {
       if (!s.ok) throw new Error(s.error || '讀取失敗');
       $('loadError').hidden = true;
       applyState(s);
     }).catch(function (e) {
       $('loadError').hidden = false;
-      $('loadErrorText').textContent = '讀不到登記資料：' + e.message + '。請稍後按「重新整理」。';
+      $('loadError').textContent = '讀不到登記資料：' + e.message + '。請稍後按「重新整理」。';
       $('sync').textContent = '讀取失敗';
     });
   }
@@ -511,27 +575,30 @@ textarea { min-height: 70px; resize: vertical; }
   // ───── 事件 ─────
   $('form').addEventListener('submit', function (ev) {
     ev.preventDefault();
-    if (!state) return;
-    var reg = readForm();
-    var msg = $('msg');
-    var hasA = reg.items.some(function (it) { return roomById(it.type).zone === 'A'; });
-    var err = !reg.name ? '請填寫姓名。' : (reg.adults + reg.kids < 1 ? '請填寫入住人數。' : (!hasA ? 'A 區至少要選一間。' : ''));
+    var reg = readForm(), msg = $('msg');
+    var bad = function (v) { return v === '' || isNaN(+v) || +v < 0 || +v > 20; };
+    var hasA = reg.items.some(function (it) { return roomById(it.type).zone === '1'; });
+    var err = !reg.name ? '請填寫姓名。' :
+      (bad(reg.adults) || bad(reg.kids) ? '人數請填 0 到 20 的數字。' :
+      (+reg.adults + +reg.kids < 1 ? '請填寫入住人數。' :
+      (!hasA ? '分類 1 包棟必選區至少要選一間。' : '')));
     if (err) { msg.textContent = err; msg.className = 'msg err'; return; }
+    if (!API) { msg.textContent = '預覽模式：檢查通過，但還沒連接試算表，所以沒有存檔。'; msg.className = 'msg'; return; }
+    reg.adults = +reg.adults; reg.kids = +reg.kids;
     $('submit').disabled = true; msg.textContent = '送出中…'; msg.className = 'msg';
     call('POST', { action: 'save', id: editing ? editing.id : '', editKey: editing ? editing.editKey : '', adminKey: adminKey, reg: reg })
       .then(function (r) {
         if (!r.ok) throw new Error(r.error);
         var mine = loadMine();
-        var existing = mine.filter(function (m) { return m.id === r.id; })[0];
         var ownKey = editing ? editing.editKey : r.editKey;
-        if (existing) existing.name = reg.name;
-        else if (ownKey) mine.push({ id: r.id, editKey: ownKey, name: reg.name });
+        var ex = mine.filter(function (m) { return m.id === r.id; })[0];
+        if (ex) ex.name = reg.name; else if (ownKey) mine.push({ id: r.id, editKey: ownKey, name: reg.name });
         saveMine(mine);
         editing = { id: r.id, editKey: ownKey || '' };
         state = r.state; renderAll(); updateFormMode();
         var o = state.result.regs.filter(function (x) { return x.id === r.id; })[0];
         var n = o ? o.items.filter(function (it) { return it.status === 'conflict'; }).length : 0;
-        msg.textContent = n ? '已儲存。你選的房型有 ' + n + ' 個需要協調，可以看上方「需要協調」。' : '已儲存，目前沒有衝突。';
+        msg.innerHTML = n ? '已儲存。你選的房型有 ' + n + ' 個需要協調，<a href="#stats">看目前統計</a>。' : '已儲存，目前沒有衝突。<a href="#stats">看目前統計</a>';
         msg.className = 'msg good';
       })
       .catch(function (e) { msg.textContent = '沒有存成功：' + e.message; msg.className = 'msg err'; })
@@ -560,20 +627,21 @@ textarea { min-height: 70px; resize: vertical; }
       saveMine(mine.filter(function (x) { return x.id !== id; }));
       if (editing && editing.id === id) resetForm();
       state = r.state; renderAll();
-    }).catch(function (e) { t.textContent = '刪除失敗'; $('msg').textContent = e.message; $('msg').className = 'msg err'; });
+    }).catch(function (e) { t.textContent = '刪除失敗：' + e.message; });
   });
 
   $('newEntry').addEventListener('click', function () { resetForm(); $('msg').textContent = ''; $('f-name').focus(); });
   $('refresh').addEventListener('click', load);
-  document.addEventListener('visibilitychange', function () { if (!document.hidden) load(); });
-  setInterval(function () { if (!document.hidden && !$('submit').disabled) load(); }, 45000);
+  document.addEventListener('visibilitychange', function () { if (!document.hidden && API) load(); });
+  setInterval(function () { if (!document.hidden && API && !$('submit').disabled) load(); }, 60000);
 
   if (API && adminKey) {
     call('POST', { action: 'checkAdmin', adminKey: adminKey }).then(function (r) {
-      isAdmin = !!r.ok; $('adminTag').hidden = !isAdmin; if (state) renderList();
+      isAdmin = !!r.ok; $('adminTag').hidden = !isAdmin; if (state) renderStats();
     }).catch(function () {});
   }
-  load();
+
+  renderPrices(); renderForm(); showView(); updateFormMode(); load();
 })();
 </script>
 </body>

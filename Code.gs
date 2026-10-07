@@ -20,28 +20,30 @@
  */
 
 // ───────────── 房型設定（改價格或數量只要改這裡） ─────────────
+// zone：'1' 包棟必選區、'2' 四間包區、'3' 包棟加選區
 var ROOMS = [
-  // A 區必選
-  { id: 'jeep',     zone: 'A', name: '吉普三人房',     beds: '1 大床 + 1 小床', qty: 2, price: 4700, note: '2026 價 4,900，老客戶折 200' },
-  { id: 'zimu',     zone: 'A', name: '子母四人房',     beds: '1 大床 + 2 小床', qty: 2, price: 5600, note: '2026 價 5,800，老客戶折 200' },
-  { id: 'swing',    zone: 'A', name: '秋千房',         beds: '1 大床 + 2 小床', qty: 3, price: 6600, note: '火車／兔窩／城堡各 1 間，老客戶折 200', themes: '火車、兔窩、城堡' },
-  { id: 'fire',     zone: 'A', name: '消防英雄滑梯房', beds: '2 大床',          qty: 2, price: 6600, note: '2026 價 6,800，老客戶折 200' },
-  { id: 'supercar', zone: 'A', name: '超跑星空滑梯房', beds: '2 大床',          qty: 1, price: 6600, note: '2026 價 6,800，老客戶折 200' },
-  { id: 'bus',      zone: 'A', name: '快樂巴士滑梯房', beds: '2 大床',          qty: 2, price: 6800, note: '原價 7,700，老闆降價' },
-  // B 區加選：A 區全滿才開放
-  { id: 'water',    zone: 'B', name: '水上漂雙人房',   beds: '雙人床 + 小床',   qty: 2, price: 3600, note: '3,800，老客戶折 200' },
-  { id: 'diudiu',   zone: 'B', name: '丟丟噹雙人房',   beds: '雙人床',          qty: 2, price: 3600, note: '3,800，老客戶折 200' },
-  // C 區包區：A 區全滿，且 C 區登記滿 3 間才成立
-  { id: 'pack',     zone: 'C', name: '包區主題房',     beds: '2 大床',          qty: 4, price: 6800, note: '兔兔／航海／樂高／恐龍各 1 間，原價 7,125 老闆降價', themes: '兔兔、航海、樂高、恐龍' }
+  { id: 'jeep', zone: '1', name: '吉普三人房', beds: '1大床+1小床', qty: 2, p26: '4,900', price: 4700, why: '老客戶折扣 200' },
+  { id: 'zimu', zone: '1', name: '子母四人房', beds: '1大床+2小床', qty: 2, p26: '5,800', price: 5600, why: '老客戶折扣 200' },
+  { id: 'train', zone: '1', name: '火車四人秋千房', beds: '1大床+2小床', qty: 1, p26: '6,800', price: 6600, why: '老客戶折扣 200' },
+  { id: 'bunny', zone: '1', name: '兔窩四人秋千房', beds: '1大床+2小床', qty: 1, p26: '6,800', price: 6600, why: '老客戶折扣 200' },
+  { id: 'castle', zone: '1', name: '城堡四人秋千房', beds: '1大床+2小床', qty: 1, p26: '6,800', price: 6600, why: '老客戶折扣 200' },
+  { id: 'fire', zone: '1', name: '消防英雄滑梯房', beds: '2大床', qty: 2, p26: '6,800', price: 6600, why: '老客戶折扣 200' },
+  { id: 'supercar', zone: '1', name: '超跑星空滑梯房', beds: '2大床', qty: 1, p26: '6,800', price: 6600, why: '老客戶折扣 200' },
+  { id: 'bus', zone: '1', name: '快樂巴士滑梯房', beds: '2大床', qty: 2, p26: '6,800', price: 6800, why: '原價 7,700，老闆降價' },
+  { id: 'rabbit', zone: '2', name: '包區兔兔房', beds: '2大床', qty: 1, p26: '6,800', price: 6800, why: '原價 7,125，老闆降價' },
+  { id: 'sail', zone: '2', name: '包區航海房', beds: '2大床', qty: 1, p26: '6,800', price: 6800, why: '原價 7,125，老闆降價' },
+  { id: 'lego', zone: '2', name: '包區樂高房', beds: '2大床', qty: 1, p26: '6,800', price: 6800, why: '原價 7,125，老闆降價' },
+  { id: 'dino', zone: '2', name: '包區恐龍房', beds: '2大床', qty: 1, p26: '6,800', price: 6800, why: '原價 7,125，老闆降價' },
+  { id: 'water', zone: '3', name: '水上漂雙人房', beds: '雙人床+120cm 小床', qty: 2, p26: '4,800', price: 3600, why: '3,800 減老客戶折扣 200' },
+  { id: 'diudiu', zone: '3', name: '丟丟噹雙人房', beds: '雙人床', qty: 2, p26: '未知', price: 3600, why: '3,800 減老客戶折扣 200' }
 ];
-var C_MIN = 3;       // C 區成團門檻（間）
-var MAX_QTY = 3;     // 每個房型每筆登記最多幾間
+var C_MIN = 3;       // 分類 2 包區成立門檻（間）
 
 // ───────────── 統計（純函式，不碰試算表） ─────────────
 /**
  * rooms 每個房型：登記需求、家庭清單、差額、是否需協調。
- * A 區「住滿」＝每個 A 區房型的需求都 ≥ 間數。
- * B/C 的「候補」只在 A 區沒排到時才需要，所以另外計數，不算進衝突。
+ * 分類 1「住滿」＝每個分類 1 房型的登記需求都 ≥ 間數。
+ * 分類 2、3 的「候補」只在分類 1 協調不到時才需要，所以另外計數，不算進衝突。
  */
 function summarize(regs, rooms) {
   rooms = rooms || ROOMS;
@@ -60,12 +62,12 @@ function summarize(regs, rooms) {
     });
   });
 
-  var aRooms = rooms.filter(function (r) { return r.zone === 'A'; });
+  var aRooms = rooms.filter(function (r) { return r.zone === '1'; });
   var aTotal = 0, aFilled = 0, aDemand = 0;
   aRooms.forEach(function (r) { aTotal += r.qty; aDemand += stat[r.id].demand; aFilled += Math.min(r.qty, stat[r.id].demand); });
   var aFull = aFilled >= aTotal;
   var cDemand = 0, cBackup = 0;
-  rooms.forEach(function (r) { if (r.zone === 'C') { cDemand += stat[r.id].demand; cBackup += stat[r.id].backup; } });
+  rooms.forEach(function (r) { if (r.zone === '2') { cDemand += stat[r.id].demand; cBackup += stat[r.id].backup; } });
   var cFormed = aFull && cDemand >= C_MIN;
 
   var conflicts = 0;
@@ -84,8 +86,8 @@ function summarize(regs, rooms) {
       var room = byId[it.type], s = stat[it.type];
       var status;
       if (it.mode === 'backup') status = 'backup';
-      else if (room.zone === 'B' && !aFull) status = 'pending_open';
-      else if (room.zone === 'C' && !cFormed) status = 'pending_group';
+      else if (room.zone === '3' && !aFull) status = 'pending_open';
+      else if (room.zone === '2' && !cFormed) status = 'pending_group';
       else status = s.over > 0 ? 'conflict' : 'clear';
       if (it.mode !== 'backup') est += room.price * it.qty;
       return { zone: room.zone, type: it.type, qty: it.qty, mode: it.mode || 'want', status: status };
@@ -105,13 +107,13 @@ function summarize(regs, rooms) {
   };
 }
 
-var STATUS_TEXT = { clear: '沒有衝突', conflict: '需協調', pending_open: '待 A 區滿', pending_group: '待成團', backup: '候補' };
+var STATUS_TEXT = { clear: '沒有衝突', conflict: '需協調', pending_open: '待分類 1 住滿', pending_group: '待成團', backup: '候補' };
 
 // ───────────── 試算表存取 ─────────────
 var SHEET_DATA = '登記資料';
 var SHEET_DETAIL = '登記明細';
 var SHEET_SUMMARY = '房型統計';
-var DATA_HEADERS = ['id', 'editKey', 'createdAt', 'updatedAt', '姓名', '大人', '小孩', '房間(JSON)', '可接受A區(JSON)', '備註'];
+var DATA_HEADERS = ['id', 'editKey', 'createdAt', 'updatedAt', '姓名', '大人', '小孩', '房間(JSON)', '可接受分類1(JSON)', '特殊需求'];
 
 function setup() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -164,18 +166,18 @@ function writeReports(regs) {
   var s = res.summary;
 
   // 房型統計
-  var sum = [['區', '房型', '床型', '間數', '登記需求', '差額', '狀態', '候補', '2027 價格', '登記的家庭', '說明']];
+  var sum = [['分類', '房型', '床型', '間數', '登記需求', '差額', '狀態', '候補', '2027 價格', '登記的家庭', '說明']];
   ROOMS.forEach(function (r) {
     var st = res.rooms[r.id];
     var state = st.over > 0 ? '需協調（超出 ' + st.over + ' 間）' : (st.left > 0 ? '剩 ' + st.left + ' 間' : '剛好');
     var fam = st.families.filter(function (f) { return f.mode !== 'backup'; })
       .map(function (f) { return f.name + (f.qty > 1 ? '×' + f.qty : ''); }).join('、');
-    sum.push([r.zone, r.name, r.beds, r.qty, st.demand, st.demand - r.qty, state, st.backup || '', r.price, fam, r.note]);
+    sum.push([r.zone, r.name, r.beds, r.qty, st.demand, st.demand - r.qty, state, st.backup || '', r.price, fam, r.why]);
   });
   sum.push(['', '', '', '', '', '', '', '', '', '', '']);
-  sum.push(['A 區', '已登記 ' + s.aFilled + ' / ' + s.aTotal + ' 間', s.aFull ? '已住滿' : '未住滿', '', '', '', '', '', '', '', '']);
-  sum.push(['B 區', s.bOpen ? '開放條件已達成' : '等 A 區住滿', '', '', '', '', '', '', '', '', '']);
-  sum.push(['C 區', '登記 ' + s.cDemand + ' 間（門檻 ' + s.cMin + '）', s.cFormed ? '已成團' : '未成團', '', '', '', '', '', '', '', '']);
+  sum.push(['分類 1', '已登記 ' + s.aFilled + ' / ' + s.aTotal + ' 間', s.aFull ? '已住滿' : '未住滿', '', '', '', '', '', '', '', '']);
+  sum.push(['分類 3', s.bOpen ? '開放條件已達成' : '等分類 1 住滿', '', '', '', '', '', '', '', '', '']);
+  sum.push(['分類 2', '登記 ' + s.cDemand + ' 間（門檻 ' + s.cMin + '）', s.cFormed ? '已成團' : '未成團', '', '', '', '', '', '', '', '']);
   sum.push(['人數', s.families + ' 個家庭', '大人 ' + s.adults, '小孩 ' + s.kids, '', '', '', '', '', '', '']);
   var sh2 = ss.getSheetByName(SHEET_SUMMARY) || ss.insertSheet(SHEET_SUMMARY);
   sh2.clearContents();
@@ -184,8 +186,8 @@ function writeReports(regs) {
   sh2.setFrozenRows(1);
 
   // 登記明細：一個家庭一列，每個房型一欄
-  var head = ['順序', '姓名', '大人', '小孩'].concat(ROOMS.map(function (r) { return r.zone + ' ' + r.name; }))
-    .concat(['候補房型', '可接受的其他 A 區', '預估金額', '備註']);
+  var head = ['順序', '姓名', '大人', '小孩'].concat(ROOMS.map(function (r) { return '分類' + r.zone + ' ' + r.name; }))
+    .concat(['候補房型', '可接受的其他分類 1 房型', '預估金額', '特殊需求']);
   var rows = [head];
   res.regs.forEach(function (o) {
     var row = [o.seq, o.name, o.adults, o.kids];
@@ -274,16 +276,16 @@ function validate(r) {
   var items = [], seen = {};
   (r.items || []).forEach(function (it) {
     var room = byId[it.type];
-    var q = clampInt(it.qty, 0, MAX_QTY);
-    var mode = room && room.zone !== 'A' && it.mode === 'backup' ? 'backup' : 'want';
+    var q = room ? clampInt(it.qty, 0, room.qty) : 0;
+    var mode = room && room.zone !== '1' && it.mode === 'backup' ? 'backup' : 'want';
     if (!room || q < 1 || seen[it.type + mode]) return;
     seen[it.type + mode] = true;
     items.push({ type: it.type, qty: q, mode: mode });
   });
-  if (!items.some(function (it) { return byId[it.type].zone === 'A'; })) return { error: 'A 區至少要選一間。' };
+  if (!items.some(function (it) { return byId[it.type].zone === '1'; })) return { error: '分類 1 包棟必選區至少要選一間。' };
   var alts = [];
   (r.alts || []).forEach(function (a) {
-    if (byId[a] && byId[a].zone === 'A' && alts.indexOf(a) < 0) alts.push(a);
+    if (byId[a] && byId[a].zone === '1' && alts.indexOf(a) < 0) alts.push(a);
   });
   return { name: name, adults: adults, kids: kids, items: items, alts: alts,
            note: String(r.note || '').trim().slice(0, 200) };
@@ -297,7 +299,7 @@ function publicState(regs) {
   var input = {};
   regs.forEach(function (r) { input[r.id] = { items: r.items, alts: r.alts }; });
   res.regs.forEach(function (o) { o.input = input[o.id]; });
-  return { ok: true, rooms: ROOMS, cMin: C_MIN, maxQty: MAX_QTY, result: res, at: Date.now() };
+  return { ok: true, rooms: ROOMS, cMin: C_MIN, result: res, at: Date.now() };
 }
 
 function json(obj) {

@@ -111,7 +111,7 @@ function createRoomForm() {
   form.addPageBreakItem().setTitle('備註');
   form.addParagraphTextItem()
     .setTitle('備註（可不填）')
-    .setHelpText('例如：想和誰住隔壁、小孩年齡、其他需求');
+    .setHelpText('特殊需求');
 
   // 回應寫入這份試算表
   form.setDestination(FormApp.DestinationType.SPREADSHEET, ss.getId());
