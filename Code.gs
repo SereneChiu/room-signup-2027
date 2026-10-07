@@ -29,7 +29,7 @@ function setup() {
     data.setFrozenRows(1);
     data.getRange(1, 1, 1, DATA_HEADERS.length).setFontWeight('bold');
   }
-  [SHEET_SUMMARY, SHEET_DETAIL].forEach(function (n) { if (!ss.getSheetByName(n)) ss.insertSheet(n); });
+  [SHEET_SUMMARY, SHEET_DETAIL, SHEET_LOG].forEach(function (n) { if (!ss.getSheetByName(n)) ss.insertSheet(n); });
   var first = ss.getSheetByName('工作表1') || ss.getSheetByName('Sheet1');
   if (first && ss.getSheets().length > 1) ss.deleteSheet(first);
   var props = PropertiesService.getScriptProperties();
@@ -148,6 +148,9 @@ var STATUS_TEXT = { clear: '沒有衝突', conflict: '需協調', pending_open: 
 // ───────────── 試算表存取 ─────────────
 var SHEET_DATA = '登記資料';
 var SHEET_DETAIL = '登記明細';
+var SHEET_LOG = '操作履歷';
+var LOG_HEADERS = ['時間', '動作', '登記', '內容', '修改前內容'];
+var LOG_MAX_RETURN = 300;   // 網頁一次最多顯示幾筆履歷
 var SHEET_SUMMARY = '房型統計';
 var DATA_HEADERS = ['id', 'editKey', 'createdAt', 'updatedAt', '座號/身分', '大人', '小孩', '房間(JSON)', '可接受分類1(JSON)', '特殊需求'];
 
@@ -228,8 +231,54 @@ function writeReports(regs) {
   return res;
 }
 
+// ───────────── 操作履歷 ─────────────
+// 記錄新增、修改、刪除（讀取每分鐘自動發生，不記錄，否則履歷會被灌爆）
+function describeReg(reg) {
+  if (!reg) return '';
+  var byId = {};
+  ROOMS.forEach(function (r) { byId[r.id] = r; });
+  var rooms = (reg.items || []).filter(function (it) { return byId[it.type]; }).map(function (it) {
+    return byId[it.type].name + (it.qty > 1 ? '×' + it.qty : '') + (it.mode === 'backup' ? '（候補）' : '');
+  }).join('、') || '（未選房）';
+  var alts = (reg.alts || []).map(function (a) { return byId[a] ? byId[a].name : a; }).join('、');
+  return '大人 ' + reg.adults + '、小孩 ' + reg.kids + '；房間：' + rooms +
+    (alts ? '；也可接受：' + alts : '') + (reg.note ? '；特殊需求：' + reg.note : '');
+}
+
+function logAction(action, name, after, before) {
+  try {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var sh = ss.getSheetByName(SHEET_LOG);
+    if (!sh) {
+      sh = ss.insertSheet(SHEET_LOG);
+    }
+    if (sh.getLastRow() === 0) {
+      sh.appendRow(LOG_HEADERS);
+      sh.setFrozenRows(1);
+      sh.getRange(1, 1, 1, LOG_HEADERS.length).setFontWeight('bold');
+    }
+    sh.appendRow([new Date(), action, name, describeReg(after), describeReg(before)]);
+  } catch (err) {
+    // 履歷寫入失敗不影響登記本身
+  }
+}
+
+function readLogs() {
+  var sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_LOG);
+  if (!sh || sh.getLastRow() < 2) return [];
+  var n = Math.min(LOG_MAX_RETURN, sh.getLastRow() - 1);
+  var start = sh.getLastRow() - n + 1;
+  var rows = sh.getRange(start, 1, n, LOG_HEADERS.length).getValues();
+  return rows.reverse().map(function (r) {
+    var t = r[0] instanceof Date ? r[0].getTime() : Number(new Date(r[0])) || 0;
+    return { at: t, action: String(r[1]), name: String(r[2]), after: String(r[3] || ''), before: String(r[4] || '') };
+  });
+}
+
 // ───────────── 網頁 API ─────────────
-function doGet() {
+function doGet(e) {
+  var action = e && e.parameter ? e.parameter.action : '';
+  if (action === 'history') return json({ ok: true, logs: readLogs(), at: Date.now() });
   return json(publicState(readRegs()));
 }
 
@@ -247,7 +296,9 @@ function doPost(e) {
     if (body.action === 'delete') {
       var row = findRow(sh, String(body.id || ''));
       if (row < 0) return json({ ok: false, error: '找不到這筆登記。' });
+      var gone = readRegs().filter(function (r) { return r.id === String(body.id); })[0];
       sh.deleteRow(row);
+      logAction('刪除', gone ? gone.name : '', null, gone);
       var regsD = readRegs();
       writeReports(regsD);
       return json({ ok: true, state: publicState(regsD) });
@@ -266,9 +317,11 @@ function doPost(e) {
         var old = readRegs().filter(function (r) { return r.id === id; })[0];
         reg = merge(clean, { id: id, editKey: old.editKey, createdAt: old.createdAt, updatedAt: now });
         sh.getRange(rowS, 1, 1, DATA_HEADERS.length).setValues([toRow(reg)]);
+        logAction('修改', reg.name, reg, old);
       } else {
         reg = merge(clean, { id: Utilities.getUuid().slice(0, 12), editKey: Utilities.getUuid(), createdAt: now, updatedAt: now });
         sh.appendRow(toRow(reg));
+        logAction('新增', reg.name, reg, null);
       }
       var regs = readRegs();
       writeReports(regs);
