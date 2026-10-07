@@ -93,6 +93,8 @@ select { width: 100%; font: inherit; color: inherit; border: 1px solid var(--lin
 #f-rel { --cc: var(--ink); }
 #f-rel input:checked + span { color: var(--bg); }
 .seg input.taken + span { text-decoration: line-through; opacity: .5; }
+.alt-head { display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: center; }
+.check-all { display: inline-flex; gap: 6px; align-items: center; border: 1px solid var(--line); border-radius: 999px; padding: 2px 12px 2px 8px; cursor: pointer; }
 .req { color: var(--accent); }
 .row { display: flex; flex-wrap: wrap; gap: 12px; }
 .row > * { flex: 1 1 140px; min-width: 0; }
@@ -224,6 +226,9 @@ textarea { min-height: 80px; resize: vertical; }
             <div class="seg" id="f-rel" role="radiogroup" aria-label="身分"></div>
           </div>
         </div>
+        <label class="field" for="f-friend" id="friendBox" hidden><span>親友家庭說明 <span class="req">*</span></span>
+          <input type="text" id="f-friend" maxlength="20" placeholder="例如：阿姨一家、同事小陳">
+        </label>
         <p class="small muted" id="whoNote"></p>
         <div class="row">
           <label class="field" for="f-adults"><span>大人人數 <span class="req">*</span></span>
@@ -239,11 +244,12 @@ textarea { min-height: 80px; resize: vertical; }
         <div class="card-head">
           <span class="tag">分類 1・必選</span>
           <h2 id="h-c1">包棟必選區</h2>
-          <p class="small muted">每個家庭至少選一間。只有 1 間的房型不能選 2 間。房型右邊是目前登記數／間數。</p>
+          <p class="small muted">每個家庭至少選一間。只有 1 間的房型不能選 2 間。房型右邊是目前的登記人數／房間總數。</p>
         </div>
         <div class="rooms" id="rooms1"></div>
         <div style="display:grid;gap:6px">
-          <span class="small"><b>如果要協調，你也可以接受哪些房型？</b>（可複選，可不填）</span>
+          <div class="alt-head"><span class="small"><b>如果要協調，你也可以接受哪些房型？</b>（可複選，可不填）</span>
+            <label class="check-all small" for="alt-all"><input type="checkbox" id="alt-all">全選</label></div>
           <div class="checks" id="alts"></div>
         </div>
       </section>
@@ -341,9 +347,13 @@ textarea { min-height: 80px; resize: vertical; }
   };
 
   var SEAT_MAX = 24;
-  var RELATIONS = ['本人', '親友1', '親友2', '親友3', '親友4', '親友5'];
-  function makeName(seat, rel) { return seat + '號 ' + rel; }
-  function parseName(name) { var m = /^(\d+)號 (.+)$/.exec(String(name || '')); return m ? { seat: m[1], rel: m[2] } : { seat: '', rel: '' }; }
+  var RELATIONS = ['本人家庭', '親友家庭'];
+  function cleanFriend(t) { return String(t || '').replace(/[（）()]/g, '').trim().slice(0, 20); }
+  function makeName(seat, rel, friend) { return seat + '號 ' + (rel === '親友家庭' ? '親友家庭（' + cleanFriend(friend) + '）' : rel); }
+  function parseName(name) {
+    var m = /^(\d+)號 (本人家庭|親友家庭)(?:（(.*)）)?$/.exec(String(name || ''));
+    return m ? { seat: m[1], rel: m[2], friend: m[3] || '' } : { seat: '', rel: '', friend: '' };
+  }
 
   var API = (window.ROOM_SIGNUP_CONFIG || {}).apiUrl || '';
   var STORE_KEY = 'roomSignup2027.mine';
@@ -408,7 +418,22 @@ textarea { min-height: 80px; resize: vertical; }
     $('alts').innerHTML = inZone('1').map(function (r) {
       return '<label for="alt-' + r.id + '"><input type="checkbox" id="alt-' + r.id + '" value="' + r.id + '">' + esc(r.name) + '</label>';
     }).join('');
+    syncAll();
   }
+
+  // 全選：全部勾＝打勾、部分勾＝「-」、都沒勾＝空白
+  function syncAll() {
+    var total = 0, n = 0;
+    each('#alts input', function (c) { total++; if (c.checked) n++; });
+    $('alt-all').checked = total > 0 && n === total;
+    $('alt-all').indeterminate = n > 0 && n < total;
+  }
+  $('alts').addEventListener('change', syncAll);
+  $('alt-all').addEventListener('change', function () {
+    var on = this.checked;
+    each('#alts input', function (c) { c.checked = on; });
+    syncAll();
+  });
 
   function renderWho() {
     var opts = '<option value="">請選擇</option>';
@@ -419,6 +444,7 @@ textarea { min-height: 80px; resize: vertical; }
     }).join('');
     $('f-seat').addEventListener('change', markTaken);
     $('f-rel').addEventListener('change', markTaken);
+    $('f-friend').addEventListener('input', markTaken);
   }
 
   // 同一座號已登記過的身分加上刪除線，並提示
@@ -426,13 +452,21 @@ textarea { min-height: 80px; resize: vertical; }
     if (!state) return [];
     return state.result.regs.filter(function (o) { return !editing || o.id !== editing.id; }).map(function (o) { return o.name; });
   }
+  function currentName() {
+    var seat = $('f-seat').value, c = document.querySelector('#f-rel input:checked');
+    if (!seat || !c || (c.value === '親友家庭' && !cleanFriend($('f-friend').value))) return '';
+    return makeName(seat, c.value, $('f-friend').value);
+  }
   function markTaken() {
     var seat = $('f-seat').value, taken = takenNames();
-    each('#f-rel input', function (i) { i.classList.toggle('taken', !!seat && taken.indexOf(makeName(seat, i.value)) >= 0); });
     var c = document.querySelector('#f-rel input:checked');
-    var dup = seat && c && taken.indexOf(makeName(seat, c.value)) >= 0;
-    var done = seat ? RELATIONS.filter(function (r) { return taken.indexOf(makeName(seat, r)) >= 0; }) : [];
-    $('whoNote').textContent = dup ? makeName(seat, c.value) + ' 已經登記過了，要修改請到「目前統計」按那筆的「修改」。' :
+    $('friendBox').hidden = !(c && c.value === '親友家庭');
+    // 本人家庭每個座號只能一筆；親友家庭可以多筆，說明不同即可
+    each('#f-rel input', function (i) { i.classList.toggle('taken', !!seat && i.value === '本人家庭' && taken.indexOf(makeName(seat, '本人家庭')) >= 0); });
+    var nm = currentName();
+    var dup = nm && taken.indexOf(nm) >= 0;
+    var done = seat ? taken.filter(function (n) { return parseName(n).seat === seat; }).map(function (n) { return n.replace(/^\d+號 /, ''); }) : [];
+    $('whoNote').textContent = dup ? nm + ' 已經登記過了，要修改請到「目前統計」按那筆的「修改」。' :
       (done.length ? seat + ' 號已登記：' + done.join('、') : '');
     $('whoNote').className = 'small ' + (dup ? 'danger' : 'muted');
   }
@@ -443,7 +477,7 @@ textarea { min-height: 80px; resize: vertical; }
       var r = roomById(el.dataset.count), st = state.result.rooms[r.id];
       if (!st) return;
       var cls = st.over > 0 ? 's-conflict' : (st.left > 0 ? 's-left' : 's-clear');
-      el.innerHTML = '<span class="pill ' + cls + '">登記 ' + st.demand + ' / ' + r.qty + (st.over > 0 ? '・需協調' : '') + '</span>';
+      el.innerHTML = '<span class="pill ' + cls + '">登記人數 ' + st.demand + '/' + r.qty + '</span>';
     });
   }
 
@@ -458,7 +492,7 @@ textarea { min-height: 80px; resize: vertical; }
     var alts = [];
     each('#alts input', function (c) { if (c.checked) alts.push(c.value); });
     var rel = document.querySelector('#f-rel input:checked');
-    return { seat: $('f-seat').value, rel: rel ? rel.value : '', adults: $('f-adults').value.trim(), kids: $('f-kids').value.trim(),
+    return { seat: $('f-seat').value, rel: rel ? rel.value : '', friend: cleanFriend($('f-friend').value), adults: $('f-adults').value.trim(), kids: $('f-kids').value.trim(),
              items: items, alts: alts, note: $('f-note').value.trim() };
   }
 
@@ -466,6 +500,7 @@ textarea { min-height: 80px; resize: vertical; }
     var who = parseName(d.name);
     $('f-seat').value = who.seat;
     each('#f-rel input', function (i) { i.checked = i.value === (who.rel || RELATIONS[0]); });
+    $('f-friend').value = who.friend || '';
     $('f-adults').value = d.adults != null ? d.adults : 2;
     $('f-kids').value = d.kids != null ? d.kids : 1;
     $('f-note').value = d.note || '';
@@ -477,6 +512,7 @@ textarea { min-height: 80px; resize: vertical; }
       if (input) input.checked = true;
     });
     each('#alts input', function (c) { c.checked = (d.alts || []).indexOf(c.value) >= 0; });
+    syncAll();
     markTaken();
   }
 
@@ -627,11 +663,12 @@ textarea { min-height: 80px; resize: vertical; }
     var reg = readForm(), msg = $('msg');
     var bad = function (v) { return v === '' || isNaN(+v) || +v < 0 || +v > 20; };
     var hasA = reg.items.some(function (it) { return roomById(it.type).zone === '1'; });
-    var dupName = reg.seat && takenNames().indexOf(makeName(reg.seat, reg.rel)) >= 0;
-    var err = !reg.seat ? '請選擇座號。' : (dupName ? makeName(reg.seat, reg.rel) + ' 已經登記過了，要修改請到「目前統計」按那筆的「修改」。' :
+    var nm0 = currentName();
+    var dupName = nm0 && takenNames().indexOf(nm0) >= 0;
+    var err = !reg.seat ? '請選擇座號。' : (reg.rel === '親友家庭' && !reg.friend ? '請填寫親友家庭說明，例如「阿姨一家」。' : (dupName ? nm0 + ' 已經登記過了，要修改請到「目前統計」按那筆的「修改」。' :
       (bad(reg.adults) || bad(reg.kids) ? '人數請填 0 到 20 的數字。' :
       (+reg.adults + +reg.kids < 1 ? '請填寫入住人數。' :
-      (!hasA ? '分類 1 包棟必選區至少要選一間。' : ''))));
+      (!hasA ? '分類 1 包棟必選區至少要選一間。' : '')))));
     if (err) { msg.textContent = err; msg.className = 'msg err'; return; }
     if (!API) { msg.textContent = '預覽模式：檢查通過，但還沒連接試算表，所以沒有存檔。'; msg.className = 'msg'; return; }
     reg.adults = +reg.adults; reg.kids = +reg.kids;
@@ -642,7 +679,7 @@ textarea { min-height: 80px; resize: vertical; }
         var mine = loadMine();
         var ownKey = editing ? editing.editKey : r.editKey;
         var ex = mine.filter(function (m) { return m.id === r.id; })[0];
-        var nm = makeName(reg.seat, reg.rel);
+        var nm = makeName(reg.seat, reg.rel, reg.friend);
         if (ex) ex.name = nm; else if (ownKey) mine.push({ id: r.id, editKey: ownKey, name: nm });
         saveMine(mine);
         editing = { id: r.id, editKey: ownKey || '' };

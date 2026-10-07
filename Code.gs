@@ -60,12 +60,13 @@ var ROOMS = [
 ];
 var C_MIN = 3;       // 分類 2 包區成立門檻（間）
 var SEAT_MAX = 24;   // 座號 1～24
-var RELATIONS = ['本人', '親友1', '親友2', '親友3', '親友4', '親友5'];
+var RELATIONS = ['本人家庭', '親友家庭'];
 
-// 登記名稱固定為「座號 + 號 + 身分」，例如「3號 親友1」
-function makeName(seat, rel) { return seat + '號 ' + rel; }
+// 登記名稱：「3號 本人家庭」或「3號 親友家庭（阿姨一家）」
+function cleanFriend(t) { return String(t || '').replace(/[（）()]/g, '').trim().slice(0, 20); }
+function makeName(seat, rel, friend) { return seat + '號 ' + (rel === '親友家庭' ? '親友家庭（' + cleanFriend(friend) + '）' : rel); }
 function parseName(name) {
-  var m = /^(\d+)號 (.+)$/.exec(String(name || ''));
+  var m = /^(\d+)號 (本人家庭|親友家庭)/.exec(String(name || ''));
   return m ? { seat: Number(m[1]), rel: m[2] } : { seat: 999, rel: String(name || '') };
 }
 function nameOrder(name) {
@@ -287,8 +288,9 @@ function doPost(e) {
 function validate(r) {
   var seat = Math.round(Number(r.seat) || 0);
   if (seat < 1 || seat > SEAT_MAX) return { error: '請選擇座號。' };
-  if (RELATIONS.indexOf(r.rel) < 0) return { error: '請選擇本人或親友。' };
-  var name = makeName(seat, r.rel);
+  if (RELATIONS.indexOf(r.rel) < 0) return { error: '請選擇本人家庭或親友家庭。' };
+  if (r.rel === '親友家庭' && !cleanFriend(r.friend)) return { error: '請填寫親友家庭說明。' };
+  var name = makeName(seat, r.rel, r.friend);
   var adults = clampInt(r.adults, 0, 20), kids = clampInt(r.kids, 0, 20);
   if (adults + kids < 1) return { error: '請填寫入住人數。' };
   var byId = {};
