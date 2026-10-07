@@ -20,6 +20,7 @@
   --c1: #1f7a6d;
   --c2: #8a4bb0;
   --c3: #2f63c9;
+  --c1s: #e3f3ef; --c2s: #f2e9f8; --c3s: #e7eefc;
   --ok: #1d7f45; --ok-bg: #e2f4e8;
   --wait: #a35d00; --wait-bg: #fdf0d9;
   --pend: #3d5a80; --pend-bg: #e4ecf7;
@@ -33,6 +34,7 @@
     --bg: #121a19; --surface: #1b2624; --line: #2e3d3a; --ink: #e6efec; --muted: #9db0ab;
     --accent: #f06a4f; --accent-ink: #1a0d09;
     --c1: #4cc1ae; --c2: #c99be6; --c3: #7fa6ff;
+    --c1s: #183631; --c2s: #2c2236; --c3s: #1c2840;
     --ok: #6fd69a; --ok-bg: #173826;
     --wait: #f2b25c; --wait-bg: #3a2a12; --pend: #9fbbe6; --pend-bg: #1f2c40; --off-bg: #252f2d;
     color-scheme: dark;
@@ -42,6 +44,7 @@
   --bg: #121a19; --surface: #1b2624; --line: #2e3d3a; --ink: #e6efec; --muted: #9db0ab;
   --accent: #f06a4f; --accent-ink: #1a0d09;
   --c1: #4cc1ae; --c2: #c99be6; --c3: #7fa6ff;
+  --c1s: #183631; --c2s: #2c2236; --c3s: #1c2840;
   --ok: #6fd69a; --ok-bg: #173826;
   --wait: #f2b25c; --wait-bg: #3a2a12; --pend: #9fbbe6; --pend-bg: #1f2c40; --off-bg: #252f2d;
   color-scheme: dark;
@@ -154,6 +157,11 @@ textarea { min-height: 80px; resize: vertical; }
 .tile .big { font-family: var(--display); font-size: 1.6rem; line-height: 1.1; }
 .meter { height: 8px; background: var(--off-bg); border-radius: 99px; overflow: hidden; }
 .meter > i { display: block; height: 100%; background: var(--cc); border-radius: 99px; }
+.k1 { --cs: var(--c1s); } .k2 { --cs: var(--c2s); } .k3 { --cs: var(--c3s); }
+.stattable tr.hit td { background: var(--cs); }
+.stattable tr.hit td:first-child { box-shadow: inset 3px 0 0 var(--cc); border-radius: 6px 0 0 6px; }
+.stattable tr.hit td:last-child { border-radius: 0 6px 6px 0; }
+.stattable tr.hit .cnt { font-weight: 700; }
 .stattable td .fam { font-size: .82rem; color: var(--muted); }
 .conf { background: var(--surface); border-radius: 14px; padding: 14px 16px; display: grid; gap: 10px; border-left: 4px solid var(--wait); }
 .conf ul { margin: 0; padding-left: 1.2em; display: grid; gap: 4px; }
@@ -402,13 +410,20 @@ textarea { min-height: 80px; resize: vertical; }
   function saveMine(list) { try { localStorage.setItem(STORE_KEY, JSON.stringify(list)); } catch (e) {} }
 
   // 逾時就放棄，避免畫面一直停在「更新中」
+  // Google 偶爾回 404／5xx（例如剛重新部署），自動再試一次
   function call(method, body) {
+    return call1(method, body).catch(function (e) {
+      if (!e || !e.retry) throw e;
+      return new Promise(function (ok) { setTimeout(ok, 1500); }).then(function () { return call1(method, body); });
+    });
+  }
+  function call1(method, body) {
     var ctrl = window.AbortController ? new AbortController() : null;
     var opt = method === 'POST' ? { method: 'POST', body: JSON.stringify(body) } : {};
     if (ctrl) opt.signal = ctrl.signal;
     var timer = setTimeout(function () { if (ctrl) ctrl.abort(); }, method === 'POST' ? 45000 : 25000);
     return fetch(API + (method === 'GET' ? '?t=' + Date.now() : ''), opt).then(function (r) {
-      if (!r.ok) throw new Error('連線失敗（' + r.status + '）');
+      if (!r.ok) { var err = new Error('連線失敗（' + r.status + '）'); err.retry = r.status === 404 || r.status >= 500; throw err; }
       return r.text();
     }).then(function (t) {
       try { return JSON.parse(t); }
@@ -650,8 +665,9 @@ textarea { min-height: 80px; resize: vertical; }
         var fam = st.families.map(function (f) { return f.name + (f.qty > 1 ? '×' + f.qty : '') + (f.mode === 'backup' ? '（候補）' : ''); }).join('、');
         var pill = st.over > 0 ? '<span class="pill s-conflict">超出 ' + st.over + ' 間</span>' :
                    (st.left > 0 ? '<span class="pill s-left">剩 ' + st.left + ' 間</span>' : '<span class="pill s-clear">剛好</span>');
-        return '<tr><td>' + esc(r.name) + (fam ? '<div class="fam">' + esc(fam) + '</div>' : '') + '</td>' +
-          '<td class="r num">' + st.demand + ' / ' + r.qty + (st.backup ? '<div class="small muted">候補 ' + st.backup + '</div>' : '') + '</td>' +
+        var hit = st.demand > 0 || st.backup > 0;
+        return '<tr class="' + ZONE[z].k + (hit ? ' hit' : '') + '"><td>' + esc(r.name) + (fam ? '<div class="fam">' + esc(fam) + '</div>' : '') + '</td>' +
+          '<td class="r num"><span class="cnt">' + st.demand + '</span> / ' + r.qty + (st.backup ? '<div class="small muted">候補 ' + st.backup + '</div>' : '') + '</td>' +
           '<td>' + pill + '</td></tr>';
       }).join('');
     }).join('');
