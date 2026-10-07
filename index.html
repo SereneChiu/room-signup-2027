@@ -359,6 +359,7 @@ textarea { min-height: 80px; resize: vertical; }
   var STORE_KEY = 'roomSignup2027.mine';
   var rooms = DEFAULT_ROOMS;
   var state = null;
+  var loading = false;
   var editing = null;
   var adminKey = new URLSearchParams(location.search).get('admin') || '';
   var isAdmin = false;
@@ -371,12 +372,23 @@ textarea { min-height: 80px; resize: vertical; }
   function loadMine() { try { return JSON.parse(localStorage.getItem(STORE_KEY) || '[]'); } catch (e) { return []; } }
   function saveMine(list) { try { localStorage.setItem(STORE_KEY, JSON.stringify(list)); } catch (e) {} }
 
+  // 逾時就放棄，避免畫面一直停在「更新中」
   function call(method, body) {
+    var ctrl = window.AbortController ? new AbortController() : null;
     var opt = method === 'POST' ? { method: 'POST', body: JSON.stringify(body) } : {};
+    if (ctrl) opt.signal = ctrl.signal;
+    var timer = setTimeout(function () { if (ctrl) ctrl.abort(); }, method === 'POST' ? 45000 : 25000);
     return fetch(API + (method === 'GET' ? '?t=' + Date.now() : ''), opt).then(function (r) {
       if (!r.ok) throw new Error('連線失敗（' + r.status + '）');
-      return r.json();
-    });
+      return r.text();
+    }).then(function (t) {
+      try { return JSON.parse(t); }
+      catch (e) { throw new Error('Google 回傳的不是登記資料，可能部署的存取權不是「所有人」，或部署尚未完成'); }
+    }).catch(function (e) {
+      if (e && e.name === 'AbortError') throw new Error('Google 太久沒有回應');
+      if (e && e.name === 'TypeError') throw new Error('連不到 Google，請檢查網路');
+      throw e;
+    }).finally(function () { clearTimeout(timer); });
   }
 
   // ───── 分頁 ─────
@@ -645,6 +657,8 @@ textarea { min-height: 80px; resize: vertical; }
       $('statRows').innerHTML = '<tr><td colspan="3" class="muted">連接 Google 試算表後顯示統計。</td></tr>';
       return;
     }
+    if (loading) return;
+    loading = true;
     $('sync').textContent = '更新中…';
     call('GET').then(function (s) {
       if (!s.ok) throw new Error(s.error || '讀取失敗');
@@ -654,7 +668,7 @@ textarea { min-height: 80px; resize: vertical; }
       $('loadError').hidden = false;
       $('loadError').textContent = '讀不到登記資料：' + e.message + '。請稍後按「重新整理」。';
       $('sync').textContent = '讀取失敗';
-    });
+    }).then(function () { loading = false; });
   }
 
   // ───── 事件 ─────
