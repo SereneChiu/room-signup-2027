@@ -204,7 +204,7 @@ function writeReports(regs) {
 
   // 登記明細：一個家庭一列，每個房型一欄
   var head = ['順序', '座號/身分', '大人', '小孩'].concat(ROOMS.map(function (r) { return '分類' + r.zone + ' ' + r.name; }))
-    .concat(['候補房型', '可接受的其他分類 1 房型', '預估金額', '特殊需求']);
+    .concat(['候補房型', '可接受的其他分類 1 房型', '特殊需求']);
   var rows = [head];
   res.regs.forEach(function (o) {
     var row = [o.seq, o.name, o.adults, o.kids];
@@ -216,7 +216,6 @@ function writeReports(regs) {
     row.push(o.items.filter(function (it) { return it.mode === 'backup'; })
       .map(function (it) { return byId[it.type].name + (it.qty > 1 ? '×' + it.qty : ''); }).join('、'));
     row.push(o.alts.map(function (a) { return byId[a] ? byId[a].name : a; }).join('、'));
-    row.push(o.estimate);
     row.push(o.note);
     rows.push(row);
   });

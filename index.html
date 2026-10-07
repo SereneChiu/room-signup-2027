@@ -261,7 +261,7 @@ textarea { min-height: 80px; resize: vertical; }
         <div class="card-head">
           <span class="tag">分類 3・可不選</span>
           <h2 id="h-c3">包棟加選區</h2>
-          <p class="small muted">分類 1 的房間住滿之後才會開放。每間 3,600 元（3,800 減老客戶折扣 200）。<br>想住：分類 1 之外再多住。候補：分類 1 協調不到房間時才需要。</p>
+          <p class="small muted">分類 1 的房間住滿之後才會開放。每間 3,600 元（3,800 減老客戶折扣 200）。<br>想住：分類 1 滿房的時候，我更想住加選區的房間。候補：分類 1 協調不到房間時才需要。</p>
         </div>
         <div class="rooms" id="rooms3"></div>
       </section>
@@ -575,10 +575,9 @@ textarea { min-height: 80px; resize: vertical; }
           '<div class="chips">' + chips + '</div>' +
           (alts.length ? '<p class="small muted">也可以接受：' + esc(alts.join('、')) + '</p>' : '') +
           (o.note ? '<p class="small muted">特殊需求：' + esc(o.note) + '</p>' : '') +
-          '<div class="entry-foot"><span class="num small">預估 <b>' + fmt(o.estimate) + '</b> 元（不含候補）</span>' +
-          ((me || isAdmin) ? '<span class="actions"><button class="linkbtn" type="button" data-edit="' + esc(o.id) + '">修改</button>' +
-            '<button class="linkbtn danger" type="button" data-del="' + esc(o.id) + '">刪除</button></span>' : '') +
-          '</div></article>';
+          ((me || isAdmin) ? '<div class="entry-foot"><span></span><span class="actions"><button class="linkbtn" type="button" data-edit="' + esc(o.id) + '">修改</button>' +
+            '<button class="linkbtn danger" type="button" data-del="' + esc(o.id) + '">刪除</button></span></div>' : '') +
+          '</article>';
       }).join('');
   }
 
