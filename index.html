@@ -244,7 +244,7 @@ textarea { min-height: 80px; resize: vertical; }
         <div class="card-head">
           <span class="tag">分類 1・必選</span>
           <h2 id="h-c1">包棟必選區</h2>
-          <p class="small muted">每個家庭至少選一間。只有 1 間的房型不能選 2 間。房型右邊是目前的登記人數／房間總數。</p>
+          <p class="small muted">每個家庭至少選一間。只有 1 間的房型不能選 2 間。房型右邊是目前的登記間數／房間總數。</p>
         </div>
         <div class="rooms" id="rooms1"></div>
         <div style="display:grid;gap:6px">
@@ -477,7 +477,7 @@ textarea { min-height: 80px; resize: vertical; }
       var r = roomById(el.dataset.count), st = state.result.rooms[r.id];
       if (!st) return;
       var cls = st.over > 0 ? 's-conflict' : (st.left > 0 ? 's-left' : 's-clear');
-      el.innerHTML = '<span class="pill ' + cls + '">登記人數 ' + st.demand + '/' + r.qty + '</span>';
+      el.innerHTML = '<span class="pill ' + cls + '">登記間數 ' + st.demand + '/' + r.qty + '</span>';
     });
   }
 
