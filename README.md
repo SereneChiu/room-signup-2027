@@ -2,7 +2,7 @@
 
 大家用網頁填寫登記、查看統計；資料存在 Google 試算表（透過 Apps Script），不經過 Google 表單。
 
-- `index.html`：網頁（「填寫登記」與「目前統計」兩個分頁）
+- `index.html`：網頁（「填寫登記」與「目前統計」兩個分頁）。登記以「座號 1～24 ＋ 身分（本人、親友1～5）」識別，同一組合只能登記一筆
 - `config.js`：填入 Apps Script 網頁應用程式網址
 - `Code.gs`：貼到 Google 試算表的 Apps Script（安裝步驟寫在檔案開頭）
 - `archive/`：舊的 Google 表單版本，已不使用

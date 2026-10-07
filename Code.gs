@@ -38,6 +38,19 @@ var ROOMS = [
   { id: 'diudiu', zone: '3', name: '丟丟噹雙人房', beds: '雙人床', qty: 2, p26: '未知', price: 3600, why: '3,800 減老客戶折扣 200' }
 ];
 var C_MIN = 3;       // 分類 2 包區成立門檻（間）
+var SEAT_MAX = 24;   // 座號 1～24
+var RELATIONS = ['本人', '親友1', '親友2', '親友3', '親友4', '親友5'];
+
+// 登記名稱固定為「座號 + 號 + 身分」，例如「3號 親友1」
+function makeName(seat, rel) { return seat + '號 ' + rel; }
+function parseName(name) {
+  var m = /^(\d+)號 (.+)$/.exec(String(name || ''));
+  return m ? { seat: Number(m[1]), rel: m[2] } : { seat: 999, rel: String(name || '') };
+}
+function nameOrder(name) {
+  var p = parseName(name), i = RELATIONS.indexOf(p.rel);
+  return p.seat * 10 + (i < 0 ? 9 : i);
+}
 
 // ───────────── 統計（純函式，不碰試算表） ─────────────
 /**
@@ -48,7 +61,7 @@ var C_MIN = 3;       // 分類 2 包區成立門檻（間）
 function summarize(regs, rooms) {
   rooms = rooms || ROOMS;
   var order = regs.slice().sort(function (x, y) {
-    return (x.createdAt || 0) - (y.createdAt || 0) || String(x.id).localeCompare(String(y.id));
+    return nameOrder(x.name) - nameOrder(y.name) || (x.createdAt || 0) - (y.createdAt || 0) || String(x.id).localeCompare(String(y.id));
   });
   var stat = {};
   rooms.forEach(function (r) { stat[r.id] = { id: r.id, qty: r.qty, demand: 0, backup: 0, families: [] }; });
@@ -113,7 +126,7 @@ var STATUS_TEXT = { clear: '沒有衝突', conflict: '需協調', pending_open: 
 var SHEET_DATA = '登記資料';
 var SHEET_DETAIL = '登記明細';
 var SHEET_SUMMARY = '房型統計';
-var DATA_HEADERS = ['id', 'editKey', 'createdAt', 'updatedAt', '姓名', '大人', '小孩', '房間(JSON)', '可接受分類1(JSON)', '特殊需求'];
+var DATA_HEADERS = ['id', 'editKey', 'createdAt', 'updatedAt', '座號/身分', '大人', '小孩', '房間(JSON)', '可接受分類1(JSON)', '特殊需求'];
 
 function setup() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -186,7 +199,7 @@ function writeReports(regs) {
   sh2.setFrozenRows(1);
 
   // 登記明細：一個家庭一列，每個房型一欄
-  var head = ['順序', '姓名', '大人', '小孩'].concat(ROOMS.map(function (r) { return '分類' + r.zone + ' ' + r.name; }))
+  var head = ['順序', '座號/身分', '大人', '小孩'].concat(ROOMS.map(function (r) { return '分類' + r.zone + ' ' + r.name; }))
     .concat(['候補房型', '可接受的其他分類 1 房型', '預估金額', '特殊需求']);
   var rows = [head];
   res.regs.forEach(function (o) {
@@ -245,6 +258,8 @@ function doPost(e) {
       var id = String(body.id || '');
       var rowS = id ? findRow(sh, id) : -1;
       var reg;
+      var dup = readRegs().filter(function (r) { return r.name === clean.name && r.id !== id; })[0];
+      if (dup) return json({ ok: false, error: clean.name + ' 已經登記過了。要修改請到「目前統計」找到那筆登記按「修改」。' });
       if (rowS > 0) {
         var old = readRegs().filter(function (r) { return r.id === id; })[0];
         if (!isAdmin && old.editKey !== body.editKey) return json({ ok: false, error: '只有登記本人或管理員可以修改這筆登記。' });
@@ -267,8 +282,10 @@ function doPost(e) {
 }
 
 function validate(r) {
-  var name = String(r.name || '').trim().slice(0, 30);
-  if (!name) return { error: '請填寫姓名。' };
+  var seat = Math.round(Number(r.seat) || 0);
+  if (seat < 1 || seat > SEAT_MAX) return { error: '請選擇座號。' };
+  if (RELATIONS.indexOf(r.rel) < 0) return { error: '請選擇本人或親友。' };
+  var name = makeName(seat, r.rel);
   var adults = clampInt(r.adults, 0, 20), kids = clampInt(r.kids, 0, 20);
   if (adults + kids < 1) return { error: '請填寫入住人數。' };
   var byId = {};
@@ -299,7 +316,7 @@ function publicState(regs) {
   var input = {};
   regs.forEach(function (r) { input[r.id] = { items: r.items, alts: r.alts }; });
   res.regs.forEach(function (o) { o.input = input[o.id]; });
-  return { ok: true, rooms: ROOMS, cMin: C_MIN, result: res, at: Date.now() };
+  return { ok: true, rooms: ROOMS, cMin: C_MIN, seatMax: SEAT_MAX, relations: RELATIONS, result: res, at: Date.now() };
 }
 
 function json(obj) {

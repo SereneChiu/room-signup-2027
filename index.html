@@ -85,7 +85,14 @@ td.r, th.r { text-align: right; white-space: nowrap; }
 tr.group td { font-family: var(--display); font-weight: 700; color: var(--cc); border-bottom: 0; padding-top: 14px; }
 
 /* 欄位 */
-label.field { display: grid; gap: 4px; font-size: .92rem; }
+label.field, div.field { display: grid; gap: 4px; font-size: .92rem; }
+.who { display: flex; flex-wrap: wrap; gap: 12px 16px; align-items: end; }
+.who label.field { flex: 0 0 120px; }
+.who div.field { flex: 1 1 260px; min-width: 0; }
+select { width: 100%; font: inherit; color: inherit; border: 1px solid var(--line); border-radius: 10px; padding: 9px 11px; background: var(--bg); }
+#f-rel { --cc: var(--ink); }
+#f-rel input:checked + span { color: var(--bg); }
+.seg input.taken + span { text-decoration: line-through; opacity: .5; }
 .req { color: var(--accent); }
 .row { display: flex; flex-wrap: wrap; gap: 12px; }
 .row > * { flex: 1 1 140px; min-width: 0; }
@@ -208,14 +215,21 @@ textarea { min-height: 80px; resize: vertical; }
     <form id="form" novalidate style="display:grid;gap:22px">
       <section class="card" aria-labelledby="h-basic">
         <div class="card-head"><h2 id="h-basic">基本資料</h2></div>
-        <label class="field" for="f-name">姓名（家庭代表）<span class="req">*</span>
-          <input type="text" id="f-name" maxlength="30" autocomplete="name" placeholder="例如：王小明">
-        </label>
+        <div class="who">
+          <label class="field" for="f-seat"><span>座號 <span class="req">*</span></span>
+            <select id="f-seat"><option value="">請選擇</option></select>
+          </label>
+          <div class="field">
+            <span>身分 <span class="req">*</span></span>
+            <div class="seg" id="f-rel" role="radiogroup" aria-label="身分"></div>
+          </div>
+        </div>
+        <p class="small muted" id="whoNote"></p>
         <div class="row">
-          <label class="field" for="f-adults">大人人數 <span class="req">*</span>
+          <label class="field" for="f-adults"><span>大人人數 <span class="req">*</span></span>
             <input type="number" id="f-adults" min="0" max="20" value="2" inputmode="numeric">
           </label>
-          <label class="field" for="f-kids">小孩人數 <span class="req">*</span>
+          <label class="field" for="f-kids"><span>小孩人數 <span class="req">*</span></span>
             <input type="number" id="f-kids" min="0" max="20" value="1" inputmode="numeric">
           </label>
         </div>
@@ -262,7 +276,7 @@ textarea { min-height: 80px; resize: vertical; }
       <div class="foot">
         <div class="row" style="align-items:center">
           <button class="btn" type="submit" id="submit" style="flex:0 0 auto">送出登記</button>
-          <button class="linkbtn" type="button" id="newEntry" hidden style="flex:0 0 auto">改為新增另一個家庭</button>
+          <button class="linkbtn" type="button" id="newEntry" hidden style="flex:0 0 auto">改為新增另一筆登記</button>
         </div>
         <span class="msg" id="msg" role="status"></span>
       </div>
@@ -325,6 +339,11 @@ textarea { min-height: 80px; resize: vertical; }
     '2': [['0', '不需要'], ['want:1', '想住'], ['backup:1', '候補']],
     '3': [['0', '不需要'], ['want:1', '想住 1 間'], ['want:2', '想住 2 間'], ['backup:1', '候補 1 間'], ['backup:2', '候補 2 間']]
   };
+
+  var SEAT_MAX = 24;
+  var RELATIONS = ['本人', '親友1', '親友2', '親友3', '親友4', '親友5'];
+  function makeName(seat, rel) { return seat + '號 ' + rel; }
+  function parseName(name) { var m = /^(\d+)號 (.+)$/.exec(String(name || '')); return m ? { seat: m[1], rel: m[2] } : { seat: '', rel: '' }; }
 
   var API = (window.ROOM_SIGNUP_CONFIG || {}).apiUrl || '';
   var STORE_KEY = 'roomSignup2027.mine';
@@ -391,6 +410,33 @@ textarea { min-height: 80px; resize: vertical; }
     }).join('');
   }
 
+  function renderWho() {
+    var opts = '<option value="">請選擇</option>';
+    for (var i = 1; i <= SEAT_MAX; i++) opts += '<option value="' + i + '">' + i + ' 號</option>';
+    $('f-seat').innerHTML = opts;
+    $('f-rel').innerHTML = RELATIONS.map(function (r, j) {
+      return '<label for="rel-' + j + '"><input type="radio" id="rel-' + j + '" name="rel" value="' + r + '"' + (j === 0 ? ' checked' : '') + '><span>' + r + '</span></label>';
+    }).join('');
+    $('f-seat').addEventListener('change', markTaken);
+    $('f-rel').addEventListener('change', markTaken);
+  }
+
+  // 同一座號已登記過的身分加上刪除線，並提示
+  function takenNames() {
+    if (!state) return [];
+    return state.result.regs.filter(function (o) { return !editing || o.id !== editing.id; }).map(function (o) { return o.name; });
+  }
+  function markTaken() {
+    var seat = $('f-seat').value, taken = takenNames();
+    each('#f-rel input', function (i) { i.classList.toggle('taken', !!seat && taken.indexOf(makeName(seat, i.value)) >= 0); });
+    var c = document.querySelector('#f-rel input:checked');
+    var dup = seat && c && taken.indexOf(makeName(seat, c.value)) >= 0;
+    var done = seat ? RELATIONS.filter(function (r) { return taken.indexOf(makeName(seat, r)) >= 0; }) : [];
+    $('whoNote').textContent = dup ? makeName(seat, c.value) + ' 已經登記過了，要修改請到「目前統計」按那筆的「修改」。' :
+      (done.length ? seat + ' 號已登記：' + done.join('、') : '');
+    $('whoNote').className = 'small ' + (dup ? 'danger' : 'muted');
+  }
+
   function refreshCounts() {
     if (!state) return;
     each('[data-count]', function (el) {
@@ -411,12 +457,15 @@ textarea { min-height: 80px; resize: vertical; }
     });
     var alts = [];
     each('#alts input', function (c) { if (c.checked) alts.push(c.value); });
-    return { name: $('f-name').value.trim(), adults: $('f-adults').value.trim(), kids: $('f-kids').value.trim(),
+    var rel = document.querySelector('#f-rel input:checked');
+    return { seat: $('f-seat').value, rel: rel ? rel.value : '', adults: $('f-adults').value.trim(), kids: $('f-kids').value.trim(),
              items: items, alts: alts, note: $('f-note').value.trim() };
   }
 
   function fillForm(d) {
-    $('f-name').value = d.name || '';
+    var who = parseName(d.name);
+    $('f-seat').value = who.seat;
+    each('#f-rel input', function (i) { i.checked = i.value === (who.rel || RELATIONS[0]); });
     $('f-adults').value = d.adults != null ? d.adults : 2;
     $('f-kids').value = d.kids != null ? d.kids : 1;
     $('f-note').value = d.note || '';
@@ -428,6 +477,7 @@ textarea { min-height: 80px; resize: vertical; }
       if (input) input.checked = true;
     });
     each('#alts input', function (c) { c.checked = (d.alts || []).indexOf(c.value) >= 0; });
+    markTaken();
   }
 
   function regInput(id) {
@@ -533,7 +583,7 @@ textarea { min-height: 80px; resize: vertical; }
   }
 
   function renderAll() {
-    renderStats(); refreshCounts(); renderMine();
+    renderStats(); refreshCounts(); renderMine(); markTaken();
     var d = new Date(state.at);
     $('sync').textContent = '更新時間 ' + d.getHours() + ':' + String(d.getMinutes()).padStart(2, '0');
   }
@@ -578,10 +628,11 @@ textarea { min-height: 80px; resize: vertical; }
     var reg = readForm(), msg = $('msg');
     var bad = function (v) { return v === '' || isNaN(+v) || +v < 0 || +v > 20; };
     var hasA = reg.items.some(function (it) { return roomById(it.type).zone === '1'; });
-    var err = !reg.name ? '請填寫姓名。' :
+    var dupName = reg.seat && takenNames().indexOf(makeName(reg.seat, reg.rel)) >= 0;
+    var err = !reg.seat ? '請選擇座號。' : (dupName ? makeName(reg.seat, reg.rel) + ' 已經登記過了，要修改請到「目前統計」按那筆的「修改」。' :
       (bad(reg.adults) || bad(reg.kids) ? '人數請填 0 到 20 的數字。' :
       (+reg.adults + +reg.kids < 1 ? '請填寫入住人數。' :
-      (!hasA ? '分類 1 包棟必選區至少要選一間。' : '')));
+      (!hasA ? '分類 1 包棟必選區至少要選一間。' : ''))));
     if (err) { msg.textContent = err; msg.className = 'msg err'; return; }
     if (!API) { msg.textContent = '預覽模式：檢查通過，但還沒連接試算表，所以沒有存檔。'; msg.className = 'msg'; return; }
     reg.adults = +reg.adults; reg.kids = +reg.kids;
@@ -592,7 +643,8 @@ textarea { min-height: 80px; resize: vertical; }
         var mine = loadMine();
         var ownKey = editing ? editing.editKey : r.editKey;
         var ex = mine.filter(function (m) { return m.id === r.id; })[0];
-        if (ex) ex.name = reg.name; else if (ownKey) mine.push({ id: r.id, editKey: ownKey, name: reg.name });
+        var nm = makeName(reg.seat, reg.rel);
+        if (ex) ex.name = nm; else if (ownKey) mine.push({ id: r.id, editKey: ownKey, name: nm });
         saveMine(mine);
         editing = { id: r.id, editKey: ownKey || '' };
         state = r.state; renderAll(); updateFormMode();
@@ -630,7 +682,7 @@ textarea { min-height: 80px; resize: vertical; }
     }).catch(function (e) { t.textContent = '刪除失敗：' + e.message; });
   });
 
-  $('newEntry').addEventListener('click', function () { resetForm(); $('msg').textContent = ''; $('f-name').focus(); });
+  $('newEntry').addEventListener('click', function () { resetForm(); $('msg').textContent = ''; $('f-seat').focus(); });
   $('refresh').addEventListener('click', load);
   document.addEventListener('visibilitychange', function () { if (!document.hidden && API) load(); });
   setInterval(function () { if (!document.hidden && API && !$('submit').disabled) load(); }, 60000);
@@ -641,7 +693,7 @@ textarea { min-height: 80px; resize: vertical; }
     }).catch(function () {});
   }
 
-  renderPrices(); renderForm(); showView(); updateFormMode(); load();
+  renderWho(); renderPrices(); renderForm(); showView(); updateFormMode(); load();
 })();
 </script>
 </body>
