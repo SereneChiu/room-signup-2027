@@ -169,7 +169,8 @@ textarea { min-height: 80px; resize: vertical; }
 .empty { background: var(--surface); border-radius: 14px; padding: 20px; color: var(--muted); }
 .mine { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: .9rem; }
 .mine .ghost[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
-.msg.good { color: var(--ok); }
+.msg.good, .okline { color: var(--ok); }
+.edit-hint { font-size: .88rem; color: var(--muted); background: var(--surface); border: 1px dashed var(--line); border-radius: 12px; padding: 10px 14px; }
 </style>
 </head>
 <body>
@@ -227,9 +228,10 @@ textarea { min-height: 80px; resize: vertical; }
           </div>
         </div>
         <label class="field" for="f-friend" id="friendBox" hidden><span>親友家庭說明 <span class="req">*</span></span>
-          <input type="text" id="f-friend" maxlength="20" placeholder="例如：阿姨一家、同事小陳">
+          <input type="text" id="f-friend" maxlength="20" placeholder="例如：阿姨一家、同事小陳" list="friendList" autocomplete="off">
+          <datalist id="friendList"></datalist>
         </label>
-        <p class="small muted" id="whoNote"></p>
+        <p class="small muted" id="whoNote" aria-live="polite"></p>
         <div class="row">
           <label class="field" for="f-adults"><span>大人人數 <span class="req">*</span></span>
             <input type="number" id="f-adults" min="0" max="20" value="2" inputmode="numeric">
@@ -312,6 +314,7 @@ textarea { min-height: 80px; resize: vertical; }
         <span class="chip s-clear">沒有衝突</span><span class="chip s-conflict">需協調</span>
         <span class="chip s-pending_open">待開放／待成團</span><span class="chip s-backup">候補</span>
       </div>
+      <p class="edit-hint" id="editHint"></p>
       <div class="list" id="list"><div class="empty">讀取中…</div></div>
     </section>
   </div>
@@ -454,12 +457,12 @@ textarea { min-height: 80px; resize: vertical; }
     $('f-rel').innerHTML = RELATIONS.map(function (r, j) {
       return '<label for="rel-' + j + '"><input type="radio" id="rel-' + j + '" name="rel" value="' + r + '"' + (j === 0 ? ' checked' : '') + '><span>' + r + '</span></label>';
     }).join('');
-    $('f-seat').addEventListener('change', markTaken);
-    $('f-rel').addEventListener('change', markTaken);
-    $('f-friend').addEventListener('input', markTaken);
+    $('f-seat').addEventListener('change', function () { onWhoChange(true); });
+    $('f-rel').addEventListener('change', function () { onWhoChange(true); });
+    $('f-friend').addEventListener('input', function () { onWhoChange(true); });
   }
 
-  // 同一座號已登記過的身分加上刪除線，並提示
+  // 選好座號＋身分（親友家庭再加說明）後，有記錄就自動載入，可以直接修改
   function takenNames() {
     if (!state) return [];
     return state.result.regs.filter(function (o) { return !editing || o.id !== editing.id; }).map(function (o) { return o.name; });
@@ -469,18 +472,58 @@ textarea { min-height: 80px; resize: vertical; }
     if (!seat || !c || (c.value === '親友家庭' && !cleanFriend($('f-friend').value))) return '';
     return makeName(seat, c.value, $('f-friend').value);
   }
-  function markTaken() {
-    var seat = $('f-seat').value, taken = takenNames();
-    var c = document.querySelector('#f-rel input:checked');
-    $('friendBox').hidden = !(c && c.value === '親友家庭');
-    // 本人家庭每個座號只能一筆；親友家庭可以多筆，說明不同即可
-    each('#f-rel input', function (i) { i.classList.toggle('taken', !!seat && i.value === '本人家庭' && taken.indexOf(makeName(seat, '本人家庭')) >= 0); });
-    var nm = currentName();
-    var dup = nm && taken.indexOf(nm) >= 0;
-    var done = seat ? taken.filter(function (n) { return parseName(n).seat === seat; }).map(function (n) { return n.replace(/^\d+號 /, ''); }) : [];
-    $('whoNote').textContent = dup ? nm + ' 已經登記過了，要修改請到「目前統計」按那筆的「修改」。' :
-      (done.length ? seat + ' 號已登記：' + done.join('、') : '');
-    $('whoNote').className = 'small ' + (dup ? 'danger' : 'muted');
+  function findByName(nm) {
+    return nm && state ? state.result.regs.filter(function (o) { return o.name === nm; })[0] : null;
+  }
+  function clearDetails() {
+    $('f-adults').value = 2; $('f-kids').value = 1; $('f-note').value = '';
+    each('.rooms input[value="0"]', function (i) { i.checked = true; });
+    each('#alts input', function (c) { c.checked = false; });
+    syncAll();
+  }
+  function fillDetails(d) {
+    $('f-adults').value = d.adults != null ? d.adults : 2;
+    $('f-kids').value = d.kids != null ? d.kids : 1;
+    $('f-note').value = d.note || '';
+    rooms.forEach(function (r) {
+      var it = (d.items || []).filter(function (x) { return x.type === r.id; })[0];
+      var v = it ? it.mode + ':' + it.qty : '0';
+      var input = document.querySelector('input[name="room-' + r.id + '"][value="' + v + '"]') ||
+                  document.querySelector('input[name="room-' + r.id + '"][value="0"]');
+      if (input) input.checked = true;
+    });
+    each('#alts input', function (c) { c.checked = (d.alts || []).indexOf(c.value) >= 0; });
+    syncAll();
+  }
+  // allowLoad：使用者自己改了座號或身分時才自動載入／清空，背景更新時不動表單
+  function onWhoChange(allowLoad) {
+    var seat = $('f-seat').value, c = document.querySelector('#f-rel input:checked');
+    var isFriend = !!(c && c.value === '親友家庭');
+    $('friendBox').hidden = !isFriend;
+    var regs = state ? state.result.regs : [];
+    var sameSeat = seat ? regs.filter(function (o) { return parseName(o.name).seat === seat; }) : [];
+    $('friendList').innerHTML = sameSeat.map(function (o) { return parseName(o.name).friend; }).filter(Boolean)
+      .map(function (f) { return '<option value="' + esc(f) + '"></option>'; }).join('');
+
+    var nm = currentName(), hit = findByName(nm);
+    if (allowLoad) {
+      if (hit && (!editing || editing.id !== hit.id)) {
+        editing = { id: hit.id, editKey: '' };
+        fillDetails(regInput(hit.id));
+      } else if (!hit && editing) {
+        editing = null;
+        clearDetails();
+      }
+    }
+    var note = '', cls = 'muted';
+    if (hit && editing && editing.id === hit.id) { note = '已載入「' + nm + '」的登記，可以直接修改後按「儲存修改」。'; cls = 'good'; }
+    else if (nm) note = '「' + nm + '」還沒有登記，填好後按「送出登記」。';
+    if (seat && sameSeat.length) note += (note ? ' ' : '') + seat + ' 號已登記：' + sameSeat.map(function (o) { return o.name.replace(/^\d+號 /, ''); }).join('、') + '。';
+    if (!seat) note = '先選座號和身分；已經登記過的會自動載入。';
+    $('whoNote').textContent = note;
+    $('whoNote').className = 'small ' + (cls === 'good' ? 'okline' : 'muted');
+    updateFormMode();
+    if (state) renderStats();
   }
 
   function refreshCounts() {
@@ -513,19 +556,8 @@ textarea { min-height: 80px; resize: vertical; }
     $('f-seat').value = who.seat;
     each('#f-rel input', function (i) { i.checked = i.value === (who.rel || RELATIONS[0]); });
     $('f-friend').value = who.friend || '';
-    $('f-adults').value = d.adults != null ? d.adults : 2;
-    $('f-kids').value = d.kids != null ? d.kids : 1;
-    $('f-note').value = d.note || '';
-    rooms.forEach(function (r) {
-      var it = (d.items || []).filter(function (x) { return x.type === r.id; })[0];
-      var v = it ? it.mode + ':' + it.qty : '0';
-      var input = document.querySelector('input[name="room-' + r.id + '"][value="' + v + '"]') ||
-                  document.querySelector('input[name="room-' + r.id + '"][value="0"]');
-      if (input) input.checked = true;
-    });
-    each('#alts input', function (c) { c.checked = (d.alts || []).indexOf(c.value) >= 0; });
-    syncAll();
-    markTaken();
+    fillDetails(d);
+    onWhoChange(false);
   }
 
   function regInput(id) {
@@ -543,7 +575,7 @@ textarea { min-height: 80px; resize: vertical; }
     var d = regInput(id);
     if (!d) return;
     editing = { id: id, editKey: editKey || '' };
-    fillForm(d); updateFormMode();
+    fillForm(d);
     if (!quiet) {
       $('msg').textContent = '正在修改「' + d.name + '」的登記。'; $('msg').className = 'msg';
       if (location.hash !== '#form') location.hash = '#form';
@@ -551,7 +583,7 @@ textarea { min-height: 80px; resize: vertical; }
     }
   }
 
-  function resetForm() { editing = null; fillForm({}); updateFormMode(); }
+  function resetForm() { editing = null; fillForm({}); }
 
   function renderMine() {
     var mine = loadMine();
@@ -608,29 +640,31 @@ textarea { min-height: 80px; resize: vertical; }
         }).join('') + '</ul></div>';
     }).join('') + '</div>';
 
-    var mineIds = loadMine().map(function (m) { return m.id; });
+    var cur = editing ? res.regs.filter(function (o) { return o.id === editing.id; })[0] : null;
+    $('editHint').innerHTML = cur ? '目前選擇的是「<b>' + esc(cur.name) + '</b>」，只有這筆可以修改或刪除。要換別筆，請到<a href="#form">填寫登記</a>改選座號和身分。' :
+      '要修改或刪除，請先到<a href="#form">填寫登記</a>選好座號和身分，該筆登記才會出現「修改」「刪除」按鈕。';
     $('list').innerHTML = !res.regs.length ? '<div class="empty">還沒有人登記。到「填寫登記」送出後，就會出現在這裡。</div>' :
       res.regs.map(function (o) {
-        var me = mineIds.indexOf(o.id) >= 0;
+        var me = !!(editing && editing.id === o.id);
         var chips = o.items.map(function (it) {
           var r = roomById(it.type);
           return '<span class="chip s-' + it.status + '">' + esc(r ? r.name : it.type) + (it.qty > 1 ? ' ×' + it.qty : '') + '・' + STATUS[it.status] + '</span>';
         }).join('');
         var alts = (o.alts || []).map(function (a) { var x = roomById(a); return x ? x.name : a; });
         return '<article class="entry' + (me ? ' me' : '') + '">' +
-          '<div class="entry-head"><span class="entry-name">' + esc(o.name) + (me ? ' <span class="small danger">（你）</span>' : '') + '</span>' +
+          '<div class="entry-head"><span class="entry-name">' + esc(o.name) + (me ? ' <span class="small okline">（目前選擇）</span>' : '') + '</span>' +
           '<span class="small muted num">大人 ' + o.adults + '・小孩 ' + o.kids + '</span></div>' +
           '<div class="chips">' + chips + '</div>' +
           (alts.length ? '<p class="small muted">也可以接受：' + esc(alts.join('、')) + '</p>' : '') +
           (o.note ? '<p class="small muted">特殊需求：' + esc(o.note) + '</p>' : '') +
-          ('<div class="entry-foot"><span></span><span class="actions"><button class="linkbtn" type="button" data-edit="' + esc(o.id) + '">修改</button>' +
-            '<button class="linkbtn danger" type="button" data-del="' + esc(o.id) + '">刪除</button></span></div>') +
+          (me ? '<div class="entry-foot"><span></span><span class="actions"><button class="linkbtn" type="button" data-edit="' + esc(o.id) + '">修改</button>' +
+            '<button class="linkbtn danger" type="button" data-del="' + esc(o.id) + '">刪除</button></span></div>' : '') +
           '</article>';
       }).join('');
   }
 
   function renderAll() {
-    renderStats(); refreshCounts(); renderMine(); markTaken();
+    refreshCounts(); renderMine(); onWhoChange(false);
     var d = new Date(state.at);
     $('sync').textContent = '更新時間 ' + d.getHours() + ':' + String(d.getMinutes()).padStart(2, '0');
   }
@@ -727,8 +761,9 @@ textarea { min-height: 80px; resize: vertical; }
     call('POST', { action: 'delete', id: id, editKey: mm ? mm.editKey : '', adminKey: adminKey }).then(function (r) {
       if (!r.ok) throw new Error(r.error);
       saveMine(mine.filter(function (x) { return x.id !== id; }));
-      if (editing && editing.id === id) resetForm();
+      if (editing && editing.id === id) { editing = null; clearDetails(); }
       state = r.state; renderAll();
+      $('msg').textContent = '已刪除。'; $('msg').className = 'msg';
     }).catch(function (e) { t.textContent = '刪除失敗：' + e.message; });
   });
 
