@@ -611,8 +611,8 @@ textarea { min-height: 80px; resize: vertical; }
           '<div class="chips">' + chips + '</div>' +
           (alts.length ? '<p class="small muted">也可以接受：' + esc(alts.join('、')) + '</p>' : '') +
           (o.note ? '<p class="small muted">特殊需求：' + esc(o.note) + '</p>' : '') +
-          ((me || isAdmin) ? '<div class="entry-foot"><span></span><span class="actions"><button class="linkbtn" type="button" data-edit="' + esc(o.id) + '">修改</button>' +
-            '<button class="linkbtn danger" type="button" data-del="' + esc(o.id) + '">刪除</button></span></div>' : '') +
+          ('<div class="entry-foot"><span></span><span class="actions"><button class="linkbtn" type="button" data-edit="' + esc(o.id) + '">修改</button>' +
+            '<button class="linkbtn danger" type="button" data-del="' + esc(o.id) + '">刪除</button></span></div>') +
           '</article>';
       }).join('');
   }

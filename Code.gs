@@ -247,8 +247,6 @@ function doPost(e) {
     if (body.action === 'delete') {
       var row = findRow(sh, String(body.id || ''));
       if (row < 0) return json({ ok: false, error: '找不到這筆登記。' });
-      var key = String(sh.getRange(row, 2).getValue());
-      if (!isAdmin && key !== body.editKey) return json({ ok: false, error: '只有登記本人或管理員可以刪除。' });
       sh.deleteRow(row);
       var regsD = readRegs();
       writeReports(regsD);
@@ -266,7 +264,6 @@ function doPost(e) {
       if (dup) return json({ ok: false, error: clean.name + ' 已經登記過了。要修改請到「目前統計」找到那筆登記按「修改」。' });
       if (rowS > 0) {
         var old = readRegs().filter(function (r) { return r.id === id; })[0];
-        if (!isAdmin && old.editKey !== body.editKey) return json({ ok: false, error: '只有登記本人或管理員可以修改這筆登記。' });
         reg = merge(clean, { id: id, editKey: old.editKey, createdAt: old.createdAt, updatedAt: now });
         sh.getRange(rowS, 1, 1, DATA_HEADERS.length).setValues([toRow(reg)]);
       } else {
