@@ -430,7 +430,7 @@ textarea { min-height: 80px; resize: vertical; }
       catch (e) { throw new Error('Google 回傳的不是登記資料，可能部署的存取權不是「所有人」，或部署尚未完成'); }
     }).catch(function (e) {
       if (e && e.name === 'AbortError') throw new Error('Google 太久沒有回應');
-      if (e && e.name === 'TypeError') throw new Error('連不到 Google，請檢查網路');
+      if (e && e.name === 'TypeError') throw new Error('連不到 Google 後端（可能是網路問題，或後端剛更新、需要重新授權）');
       throw e;
     }).finally(function () { clearTimeout(timer); });
   }
